@@ -1,0 +1,14 @@
+# 仅本机使用，固定版本保证可复现
+fastapi==0.115.6
+starlette==0.41.3
+pydantic==2.10.4
+pydantic-core==2.27.2
+annotated-types==0.7.0
+typing-extensions==4.16.0
+uvicorn==0.32.1
+click==8.5.0
+h11==0.16.0
+anyio==4.15.1
+sniffio==1.3.1
+idna==3.10
+python-multipart==0.0.17

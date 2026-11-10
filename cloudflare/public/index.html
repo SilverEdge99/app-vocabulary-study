@@ -1,0 +1,2362 @@
+<!DOCTYPE html>
+<html lang="zh-CN" data-theme="light">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
+<meta name="theme-color" content="#B4552D" />
+<meta name="apple-mobile-web-app-capable" content="yes" />
+<meta name="apple-mobile-web-app-status-bar-style" content="default" />
+<meta name="apple-mobile-web-app-title" content="Vocab" />
+<link rel="manifest" href="/manifest.webmanifest" />
+<link rel="apple-touch-icon" href="/icon-180.png" />
+<title>Vocab · 云端背单词</title>
+<style>
+/* ==========================================================================
+   设计 token：暖纸底 + 陶土主色，浅/深两套，全部走 CSS 变量
+   ========================================================================== */
+:root{
+  --bg:#F7F5F1; --surface:#FFFFFF; --surface-2:#FBFAF7;
+  --text:#1A1917; --muted:#6F6A62; --faint:#9C968C;
+  --line:#E7E2DA; --line-strong:#D8D2C7;
+  --accent:#B4552D; --accent-ink:#FFFFFF; --accent-soft:rgba(180,85,45,.10);
+  --ok:#2F7D5A; --ok-soft:rgba(47,125,90,.10);
+  --err:#C0392B; --err-soft:rgba(192,57,43,.10);
+  --radius:12px; --radius-sm:8px;
+  --shadow:0 1px 2px rgba(26,25,23,.06), 0 8px 24px rgba(26,25,23,.04);
+  --ring:0 0 0 3px rgba(180,85,45,.20);
+  --font:system-ui,"Segoe UI Variable","Segoe UI","Microsoft YaHei UI","PingFang SC",sans-serif;
+  --mono:"Cascadia Mono","Consolas",ui-monospace,monospace;
+  --t:160ms cubic-bezier(.2,.8,.2,1);
+}
+html[data-theme="dark"]{
+  --bg:#131211; --surface:#1C1A18; --surface-2:#211E1B;
+  --text:#F1EDE6; --muted:#9C948A; --faint:#6E675E;
+  --line:#2B2825; --line-strong:#3A352F;
+  --accent:#E08A5B; --accent-ink:#1A1410; --accent-soft:rgba(224,138,91,.12);
+  --ok:#63B98C; --ok-soft:rgba(99,185,140,.12);
+  --err:#E06B5E; --err-soft:rgba(224,107,94,.12);
+  --shadow:0 1px 2px rgba(0,0,0,.4), 0 8px 24px rgba(0,0,0,.25);
+  --ring:0 0 0 3px rgba(224,138,91,.22);
+}
+*{box-sizing:border-box}
+[hidden]{display:none !important}
+html,body{height:100%}
+body{
+  margin:0;background:var(--bg);color:var(--text);font-family:var(--font);
+  font-size:14px;line-height:1.55;-webkit-font-smoothing:antialiased;
+}
+button,input,select,textarea{font:inherit;color:inherit}
+button{cursor:pointer}
+::selection{background:var(--accent-soft)}
+h1,h2,h3{margin:0;font-weight:600;letter-spacing:-.01em}
+.num{font-variant-numeric:tabular-nums}
+
+/* ============================ 布局 ============================ */
+.app{display:grid;grid-template-columns:228px 1fr;min-height:100vh}
+.sidebar{
+  background:var(--surface);border-right:1px solid var(--line);
+  padding:22px 14px 16px;display:flex;flex-direction:column;gap:18px;
+  position:sticky;top:0;height:100vh;
+}
+.brand{display:flex;align-items:center;gap:10px;padding:0 8px}
+.brand-mark{
+  width:26px;height:26px;border-radius:8px;background:var(--accent);
+  display:grid;place-items:center;color:var(--accent-ink);flex:none;
+}
+.brand-mark svg{width:15px;height:15px}
+.brand-name{font-weight:650;font-size:15px;letter-spacing:-.02em}
+.brand-sub{font-size:11px;color:var(--faint);margin-top:-3px}
+
+.side-label{font-size:11px;color:var(--faint);padding:0 10px;letter-spacing:.04em}
+select.book-select{
+  width:100%;padding:9px 10px;border:1px solid var(--line);border-radius:var(--radius-sm);
+  background:var(--surface-2);appearance:none;
+}
+select.book-select:focus{outline:none;border-color:var(--accent);box-shadow:var(--ring)}
+
+nav{display:flex;flex-direction:column;gap:2px}
+.nav-item{
+  display:flex;align-items:center;gap:10px;width:100%;padding:9px 10px;
+  border:0;border-radius:var(--radius-sm);background:transparent;color:var(--muted);
+  text-align:left;transition:background var(--t),color var(--t);
+}
+.nav-item:hover{background:var(--surface-2);color:var(--text)}
+.nav-item[aria-current="page"]{background:var(--accent-soft);color:var(--accent);font-weight:600}
+.nav-item svg{width:16px;height:16px;flex:none;opacity:.9}
+.nav-badge{
+  margin-left:auto;font-size:11px;padding:1px 6px;border-radius:99px;
+  background:var(--surface-2);border:1px solid var(--line);color:var(--muted);
+}
+.nav-item[aria-current="page"] .nav-badge{background:transparent;border-color:transparent;color:var(--accent)}
+
+.side-foot{margin-top:auto;display:flex;flex-direction:column;gap:10px}
+.theme-toggle{
+  display:flex;align-items:center;justify-content:space-between;gap:8px;
+  padding:8px 10px;border:1px solid var(--line);border-radius:var(--radius-sm);
+  background:var(--surface-2);color:var(--muted);
+}
+.theme-toggle:hover{color:var(--text)}
+.theme-toggle svg{width:15px;height:15px}
+.health{display:flex;align-items:center;gap:6px;font-size:11px;color:var(--faint);padding:0 4px}
+.dot{width:6px;height:6px;border-radius:50%;background:var(--faint)}
+.dot.ok{background:var(--ok)}
+
+/* ============================ 主区 ============================ */
+main{padding:26px 34px 60px;max-width:1120px;width:100%}
+.page-head{display:flex;align-items:flex-end;justify-content:space-between;gap:16px;margin-bottom:22px}
+.page-head h1{font-size:22px}
+.page-head p{margin:4px 0 0;color:var(--muted);font-size:13px}
+.page{display:none;animation:fade .22s var(--t)}
+.page.active{display:block}
+@keyframes fade{from{opacity:0;transform:translateY(3px)}to{opacity:1;transform:none}}
+
+.card{
+  background:var(--surface);border:1px solid var(--line);border-radius:var(--radius);
+  box-shadow:var(--shadow);
+}
+.card-pad{padding:20px}
+.card-head{display:flex;align-items:center;justify-content:space-between;gap:12px;padding:14px 18px;border-bottom:1px solid var(--line)}
+.card-head h2{font-size:14px}
+.card-head .hint{font-size:12px;color:var(--faint)}
+.grid{display:grid;gap:14px}
+.grid-2{grid-template-columns:1fr 1fr}
+.grid-3{grid-template-columns:repeat(3,1fr)}
+.grid-4{grid-template-columns:repeat(4,1fr)}
+
+/* 按钮 */
+.btn{
+  display:inline-flex;align-items:center;justify-content:center;gap:7px;
+  padding:9px 14px;border-radius:var(--radius-sm);border:1px solid var(--line);
+  background:var(--surface);color:var(--text);transition:background var(--t),border-color var(--t),transform var(--t);
+  font-weight:500;
+}
+.btn:hover{background:var(--surface-2);border-color:var(--line-strong)}
+.btn:active{transform:translateY(1px)}
+.btn:focus-visible{outline:none;box-shadow:var(--ring)}
+.btn-primary{background:var(--accent);border-color:var(--accent);color:var(--accent-ink)}
+.btn-primary:hover{background:var(--accent);filter:brightness(1.06)}
+.btn-ghost{background:transparent;border-color:transparent;color:var(--muted)}
+.btn-ghost:hover{background:var(--surface-2);color:var(--text)}
+.btn-sm{padding:5px 10px;font-size:12px;border-radius:6px}
+.btn[disabled]{opacity:.45;pointer-events:none}
+.btn-danger{color:var(--err);border-color:var(--line)}
+.btn-danger:hover{border-color:var(--err);background:var(--err-soft)}
+
+/* 输入 */
+.input,textarea.input{
+  width:100%;padding:10px 12px;background:var(--surface-2);
+  border:1px solid var(--line);border-radius:var(--radius-sm);
+}
+.input:focus{outline:none;border-color:var(--accent);box-shadow:var(--ring);background:var(--surface)}
+.field{display:flex;flex-direction:column;gap:6px}
+.field label{font-size:12px;color:var(--muted)}
+.row{display:flex;gap:10px;align-items:center}
+.row-wrap{flex-wrap:wrap}
+
+/* 分段控件 */
+.seg{display:inline-flex;padding:3px;background:var(--surface-2);border:1px solid var(--line);border-radius:10px;gap:2px}
+.seg button{
+  border:0;background:transparent;padding:6px 12px;border-radius:7px;color:var(--muted);
+  font-size:13px;transition:background var(--t),color var(--t);
+}
+.seg button[aria-pressed="true"]{background:var(--surface);color:var(--text);box-shadow:0 1px 2px rgba(0,0,0,.06);font-weight:600}
+
+/* ============================ 背诵卡 ============================ */
+.study-wrap{max-width:760px;margin:0 auto}
+.study-card{position:relative;overflow:hidden}
+.progress-track{height:3px;background:var(--line)}
+.progress-fill{height:100%;background:var(--accent);width:0;transition:width .3s var(--t)}
+.study-body{padding:34px 34px 28px;text-align:center}
+.study-meta{display:flex;justify-content:space-between;color:var(--faint);font-size:12px;margin-bottom:22px}
+.study-label{font-size:12px;color:var(--faint);letter-spacing:.06em;text-transform:uppercase}
+.prompt{
+  font-size:30px;font-weight:600;letter-spacing:-.02em;line-height:1.35;
+  margin:10px 0 26px;word-break:break-word;
+}
+.prompt.small{font-size:22px;line-height:1.5}
+.answer-input{
+  width:100%;height:52px;padding:0 16px;font-size:19px;text-align:center;
+  background:var(--surface-2);border:1.5px solid var(--line);border-radius:10px;
+  transition:border-color var(--t),box-shadow var(--t),background var(--t);
+}
+.answer-input:focus{outline:none;border-color:var(--accent);background:var(--surface);box-shadow:var(--ring)}
+.study-actions{display:flex;gap:10px;justify-content:center;margin-top:16px}
+.kbd-hint{margin-top:14px;font-size:11.5px;color:var(--faint)}
+kbd{
+  font-family:var(--mono);font-size:10.5px;padding:1px 5px;border:1px solid var(--line);
+  border-bottom-width:2px;border-radius:4px;background:var(--surface-2);color:var(--muted);
+}
+
+.result{
+  margin-top:18px;padding:12px 14px;border-radius:10px;font-size:13.5px;
+  display:none;text-align:left;animation:slide .18s var(--t);
+}
+.result.show{display:block}
+.result.ok{background:var(--ok-soft);color:var(--ok);border:1px solid rgba(47,125,90,.25)}
+.result.bad{background:var(--err-soft);color:var(--err);border:1px solid rgba(192,57,43,.22)}
+.result .answer-line{margin-top:4px;color:var(--text);font-size:13px}
+.result .answer-line b{font-weight:600}
+@keyframes slide{from{opacity:0;transform:translateY(6px)}to{opacity:1;transform:none}}
+
+/* 报告 */
+.report-hero{text-align:center;padding:8px 0 4px}
+.report-score{font-size:44px;font-weight:650;letter-spacing:-.02em}
+.report-accuracy{color:var(--muted)}
+.wrong-list{margin:16px 0 0;padding:0;list-style:none;display:flex;flex-direction:column;gap:8px}
+.wrong-item{
+  display:grid;grid-template-columns:1fr auto;gap:6px 12px;padding:10px 12px;
+  border:1px solid var(--line);border-radius:10px;background:var(--surface-2);
+}
+.wrong-item .w{font-weight:600}
+.wrong-item .m{color:var(--muted);font-size:12.5px}
+.wrong-item .mine{color:var(--err);font-size:12px}
+
+/* KPI */
+.kpi{padding:16px 18px}
+.kpi .label{font-size:12px;color:var(--muted)}
+.kpi .value{font-size:26px;font-weight:650;letter-spacing:-.02em;margin-top:2px}
+.kpi .sub{font-size:11.5px;color:var(--faint)}
+
+/* 图表 */
+.chart{width:100%;height:170px}
+.chart .bar-new{fill:var(--accent)}
+.chart .bar-review{fill:var(--line-strong)}
+.chart text{fill:var(--faint);font-size:10px}
+
+/* 表格 */
+table{width:100%;border-collapse:collapse;font-size:13px}
+th,td{padding:9px 12px;text-align:left;border-bottom:1px solid var(--line);vertical-align:middle}
+th{font-size:11.5px;color:var(--muted);font-weight:500;background:var(--surface-2)}
+tr:last-child td{border-bottom:0}
+tbody tr:hover{background:var(--surface-2)}
+.word-cell{font-weight:600;font-family:var(--mono);font-size:13px}
+.speak-btn{
+  display:inline-flex;align-items:center;justify-content:center;flex:none;
+  width:26px;height:26px;padding:0;border:1px solid var(--line);border-radius:7px;
+  background:var(--surface);color:var(--muted);cursor:pointer;
+  transition:color var(--t),border-color var(--t),background var(--t);
+}
+.speak-btn:hover{color:var(--accent);border-color:var(--accent);background:var(--accent-soft)}
+.speak-btn svg{width:14px;height:14px}
+.speak-btn.busy{color:var(--accent);border-color:var(--accent)}
+.meaning-cell{color:var(--muted);max-width:340px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.chip{display:inline-flex;align-items:center;gap:4px;font-size:11px;padding:2px 7px;border-radius:99px;border:1px solid var(--line);color:var(--muted)}
+.chip.err{color:var(--err);border-color:rgba(192,57,43,.3);background:var(--err-soft)}
+.chip.ok{color:var(--ok);border-color:rgba(47,125,90,.3);background:var(--ok-soft)}
+.pager{display:flex;align-items:center;gap:10px;justify-content:flex-end;padding:10px 4px;color:var(--muted);font-size:12px}
+
+/* 词书列表 */
+.book-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(260px,1fr));gap:12px}
+.book-card{padding:16px;border-radius:var(--radius);border:1px solid var(--line);background:var(--surface);transition:border-color var(--t),box-shadow var(--t);cursor:pointer}
+.book-card:hover{border-color:var(--line-strong)}
+.book-card.active{border-color:var(--accent);box-shadow:0 0 0 1px var(--accent) inset}
+.book-card .name{font-weight:600}
+.book-card .desc{color:var(--muted);font-size:12px;margin-top:3px;min-height:18px}
+.book-stats{display:flex;gap:12px;margin-top:12px;font-size:11.5px;color:var(--faint)}
+.book-card .plan{margin-top:10px;display:flex;align-items:center;gap:8px;font-size:12px;color:var(--muted)}
+.book-actions{display:flex;gap:6px;justify-content:flex-end;margin-top:10px;padding-top:10px;border-top:1px dashed var(--line)}
+
+/* 空状态 */
+.empty{text-align:center;padding:46px 20px;color:var(--muted)}
+.empty svg{width:56px;height:56px;opacity:.5;margin-bottom:10px}
+.empty p{margin:4px 0}
+
+/* 导入 */
+.drop{
+  border:1.5px dashed var(--line-strong);border-radius:var(--radius);padding:26px;
+  text-align:center;color:var(--muted);background:var(--surface-2);transition:border-color var(--t),background var(--t);
+}
+.drop.hover{border-color:var(--accent);background:var(--accent-soft)}
+.notice{padding:10px 12px;border-radius:var(--radius-sm);background:var(--surface-2);border:1px solid var(--line);color:var(--muted);font-size:12.5px}
+
+/* 记录 */
+.history-layout{display:grid;grid-template-columns:250px 1fr;gap:14px;align-items:start}
+.day-item{display:block;width:100%;text-align:left;border:0;border-bottom:1px solid var(--line);background:transparent;padding:11px 16px;transition:background var(--t)}
+.day-item:last-child{border-bottom:0}
+.day-item:hover{background:var(--surface-2)}
+.day-item[aria-pressed="true"]{background:var(--accent-soft)}
+.day-item .d{font-weight:600;font-variant-numeric:tabular-nums}
+.day-item .meta{font-size:11.5px;color:var(--faint);margin-top:2px}
+.hw-row{display:flex;gap:12px;padding:11px 16px;border-bottom:1px solid var(--line);align-items:flex-start}
+.hw-row:last-child{border-bottom:0}
+.hw-row .w{font-family:var(--mono);font-weight:600;min-width:132px}
+.hw-row .m{flex:1;color:var(--muted);font-size:13px}
+.hw-row .u{color:var(--faint);font-size:12px;margin-top:3px;white-space:pre-line}
+
+/* 用法卡 */
+.usage{margin-top:14px;text-align:left;border:1px solid var(--line);border-radius:10px;background:var(--surface-2);padding:12px 14px}
+.usage h4{margin:0 0 6px;font-size:11.5px;color:var(--faint);font-weight:500;letter-spacing:.04em;text-transform:uppercase}
+.usage ul{margin:0 0 10px;padding-left:18px;color:var(--text);font-size:13px}
+.usage ul:last-child{margin-bottom:0}
+.usage li{margin:2px 0}
+.usage .none{color:var(--faint);font-size:12.5px}
+
+/* 弹窗 */
+.modal{position:fixed;inset:0;background:rgba(20,18,16,.42);display:grid;place-items:center;z-index:60;padding:20px}
+/* 弹窗可以叠：计划/当日记忆 60 < 单词详情 70 < 用法编辑 80 */
+#wordModal{z-index:70}
+#usageModal{z-index:80}
+.modal-card{width:min(560px,100%);background:var(--surface);border:1px solid var(--line);border-radius:14px;box-shadow:0 20px 60px rgba(0,0,0,.25);overflow:hidden;animation:slide .18s var(--t)}
+.modal-card.wide{width:min(780px,100%)}
+.story-panel{border-top:1px solid var(--line);margin:18px -20px 0;padding:16px 20px 0}
+.story-out{
+  white-space:pre-wrap;line-height:1.8;font-size:13.5px;margin-top:10px;
+  background:var(--surface-2);border:1px solid var(--line);border-radius:10px;
+  padding:14px 16px;max-height:320px;overflow:auto;
+}
+.story-out .zh{color:var(--muted)}
+.plan-bar{height:8px;background:var(--line);border-radius:99px;overflow:hidden;margin-bottom:14px}
+.plan-bar .plan-bar-fill{height:100%;width:0;background:var(--accent);transition:width .3s var(--t)}
+.plan-bar #planFill{height:100%;width:0;background:var(--accent);transition:width .3s var(--t)}
+.plan-row{cursor:default}
+.plan-row:hover{background:var(--surface-2)}
+.plan-row .p-w{cursor:pointer;border-bottom:1px dashed var(--line-strong);padding-bottom:1px}
+.plan-row .p-w:hover{color:var(--accent);border-bottom-color:var(--accent)}
+.wd-meaning{font-size:14px;color:var(--text);padding:2px 0 6px}
+.wd-sec{margin-top:14px}
+.wd-h{font-size:11.5px;color:var(--faint);letter-spacing:.04em;text-transform:uppercase;margin-bottom:4px}
+.wd-list{margin:0;padding-left:18px;font-size:13px;line-height:1.75}
+.wd-list li{margin:2px 0}
+.wd-list:empty::after{content:"还没有，可以点下面的「AI 生成」或「编辑用法」补上";color:var(--faint);font-size:12.5px}
+.plan-row{display:flex;gap:12px;align-items:center;padding:9px 4px;border-bottom:1px solid var(--line)}
+.plan-row:last-child{border-bottom:0}
+.plan-row .p-w{font-family:var(--mono);font-weight:600;min-width:130px}
+.plan-row .p-m{flex:1;color:var(--muted);font-size:12.5px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.plan-row .p-t{width:34px;text-align:right;color:var(--faint);font-size:11px}
+.modal-card textarea.input{resize:vertical;line-height:1.6}
+
+/* toast */
+#toasts{position:fixed;right:22px;bottom:22px;display:flex;flex-direction:column;gap:8px;z-index:50}
+.toast{
+  padding:10px 14px;border-radius:10px;background:var(--surface);border:1px solid var(--line);
+  box-shadow:var(--shadow);font-size:13px;min-width:180px;animation:slide .18s var(--t);
+}
+.toast.ok{border-left:3px solid var(--ok)}
+.toast.bad{border-left:3px solid var(--err)}
+
+@media (prefers-reduced-motion: reduce){
+  *{animation:none!important;transition:none!important}
+}
+@media (max-width:1080px){
+  .app{grid-template-columns:200px 1fr}
+  main{padding:20px 22px 50px}
+  .grid-4{grid-template-columns:1fr 1fr}
+  .grid-3{grid-template-columns:1fr 1fr}
+}
+/* ================= 手机 / 窄屏（iOS Safari 优先） ================= */
+@media (max-width: 860px){
+  .app{display:block}
+  main{width:auto;max-width:100%}
+  .sidebar{
+    position:fixed;left:0;right:0;bottom:0;top:auto;height:auto;
+    flex-direction:row;align-items:center;gap:6px;padding:6px 8px calc(6px + env(safe-area-inset-bottom));
+    border-right:0;border-top:1px solid var(--line);z-index:50;
+    background:var(--surface);
+  }
+  .brand,.side-label,#bookSelect,.side-foot{display:none}
+  nav{flex-direction:row;flex:1;justify-content:space-between;gap:0}
+  .nav-item{flex:1 1 0;min-width:0;flex-direction:column;gap:3px;font-size:9.5px;
+    padding:5px 2px;border-radius:10px;text-align:center}
+  .nav-item svg{width:18px;height:18px}
+  /* 分段控件：手机上不要一行一个字的竖排 */
+  html{height:auto;overflow-x:hidden;max-width:100%}
+  body{height:auto;min-height:100vh;max-width:100%;overflow-x:visible;-webkit-overflow-scrolling:touch}
+  .card,.field,.grid,.page,.study-wrap,main{min-width:0;max-width:100%}
+  .seg{flex-wrap:wrap;width:100%;max-width:100%;box-sizing:border-box}
+  .seg button{flex:1 1 auto;min-width:0;font-size:13px;padding:8px 6px;white-space:nowrap}
+  .nav-badge{position:absolute;margin:0;transform:translate(14px,-10px);font-size:10px}
+  .nav-item{position:relative}
+  main{padding:14px 14px 96px;max-width:none}
+  .page-head{margin-bottom:14px}
+  .page-head h1{font-size:19px}
+  .grid-2,.grid-3,.grid-4{grid-template-columns:minmax(0,1fr)}
+  .study-wrap{max-width:none}
+  .study-body{padding:22px 18px 20px}
+  .prompt{font-size:26px;margin:8px 0 20px}
+  .prompt.small{font-size:19px}
+  .answer-input{height:54px;font-size:17px}
+  .study-actions .btn{flex:1}
+  .modal{padding:0;align-items:end}
+  .modal-card,.modal-card.wide{width:100%;max-height:92vh;border-radius:14px 14px 0 0;
+    position:fixed;left:0;right:0;bottom:0;margin:0;
+    display:flex;flex-direction:column}
+  .modal-card .card-head{flex:0 0 auto}
+  .modal-card .card-pad{flex:1 1 auto;min-height:0;overflow-y:auto;
+    -webkit-overflow-scrolling:touch;overscroll-behavior:contain}
+  .card-pad{max-height:none !important}
+  .plan-row .p-w{min-width:0;flex:1}
+  .plan-row .p-m{display:none}
+  .hw-row .w{min-width:0;flex:1}
+  .history-layout{grid-template-columns:minmax(0,1fr)}
+  .book-grid{grid-template-columns:minmax(0,1fr)}
+  table{font-size:12.5px}
+  th,td{padding:8px 6px}
+  /* iOS：输入框字体 <16px 会触发自动放大 */
+  input,select,textarea,.input,.answer-input{font-size:16px !important}
+  .kbd-hint{display:none}
+}
+</style>
+</head>
+<body>
+<div class="app">
+  <!-- ================= 侧栏 ================= -->
+  <aside class="sidebar">
+    <div class="brand">
+      <span class="brand-mark" aria-hidden="true">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round">
+          <path d="M4 6h9M4 12h9M4 18h6"/><path d="M15 14l3 3 4-4"/>
+        </svg>
+      </span>
+      <div>
+        <div class="brand-name">Vocab</div>
+        <div class="brand-sub">Cloudflare · 云端同步</div>
+      </div>
+    </div>
+
+    <div>
+      <div class="side-label">当前词书</div>
+      <select id="bookSelect" class="book-select" aria-label="选择词书"></select>
+    </div>
+
+    <nav id="nav">
+      <button class="nav-item" data-page="study" aria-current="page">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M12 20l-1-1c-2-2-4-3.2-7-3V6c3 .2 5 1.4 7 3.6C13 7.4 15 6.2 18 6v10c-3 .2-5 1-7 3z"/></svg>
+        背诵
+      </button>
+      <button class="nav-item" data-page="review">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M3 12a9 9 0 1 0 3-6.7"/><path d="M3 4v5h5"/></svg>
+        复习<span id="dueBadge" class="nav-badge num" hidden>0</span>
+      </button>
+      <button class="nav-item" data-page="books">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M4 5h7v15H4z"/><path d="M13 5h7v15h-7z"/></svg>
+        词书
+      </button>
+      <button class="nav-item" data-page="history">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M4 6h16M4 12h16M4 18h10"/><circle cx="19" cy="18" r="2"/></svg>
+        记录
+      </button>
+      <button class="nav-item" data-page="stats">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M4 20V10M10 20V4M16 20v-7M22 20H2"/></svg>
+        统计
+      </button>
+      <button class="nav-item" data-page="data">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M12 3v12"/><path d="M7 10l5 5 5-5"/><path d="M4 19h16"/></svg>
+        导入导出
+      </button>
+    </nav>
+
+    <div class="side-foot">
+      <button id="themeBtn" class="theme-toggle" title="切换深浅色">
+        <span class="row" style="gap:8px"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><circle cx="12" cy="12" r="4"/><path d="M12 2v2M12 20v2M2 12h2M20 12h2M5 5l1.5 1.5M17.5 17.5L19 19M19 5l-1.5 1.5M6.5 17.5L5 19"/></svg><span id="themeLabel">浅色</span></span>
+        <span class="chip" style="border:0">⌥ D</span>
+      </button>
+      <div class="health"><span class="dot" id="healthDot"></span><span id="healthText">连接中…</span></div>
+      <div class="health" style="color:var(--faint);opacity:.85">构建 2026-10-30 · 含昨日回顾</div>
+    </div>
+  </aside>
+
+  <!-- ================= 主区 ================= -->
+  <main>
+    <!-- ---------------- 背诵 ---------------- -->
+    <section class="page active" id="page-study">
+      <div class="page-head">
+        <div>
+          <h1>背诵</h1>
+          <p id="studySub">选择模式与范围，开始一组默写</p>
+        </div>
+      </div>
+
+      <!-- 配置区 -->
+      <div id="studySetup" class="grid" style="max-width:760px;margin:0 auto">
+        <div class="card card-pad">
+          <div class="grid grid-2">
+            <div class="field">
+              <label>默写模式</label>
+              <div class="seg" id="modeSeg">
+                <button data-mode="A" aria-pressed="true">中文 → 英文</button>
+                <button data-mode="B" aria-pressed="false">英文 → 中文</button>
+              </div>
+            </div>
+            <div class="field">
+              <label>题量</label>
+              <input id="limitInput" class="input num" type="number" min="1" max="200" value="20" />
+            </div>
+          </div>
+          <div class="field" style="margin-top:16px">
+            <label>范围</label>
+            <div class="seg" id="scopeSeg">
+              <button data-scope="new" aria-pressed="true">新词</button>
+              <button data-scope="due" aria-pressed="false">到期</button>
+              <button data-scope="error" aria-pressed="false">错题</button>
+              <button data-scope="book" aria-pressed="false">整本</button>
+            </div>
+          </div>
+          <div class="row" style="margin-top:20px">
+            <button id="startBtn" class="btn btn-primary">开始默写</button>
+            <span class="hint" style="color:var(--faint);font-size:12px">Enter 提交 · Esc 看答案</span>
+          </div>
+        </div>
+        <div id="studyEmpty" class="card empty">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.4"><path d="M4 19.5V5a2 2 0 0 1 2-2h13v18H6a2 2 0 0 1-2-2z"/><path d="M8 7h7M8 11h5"/></svg>
+          <p>还没开始。先选好词书，再点「开始默写」。</p>
+          <p style="font-size:12px;color:var(--faint)">建议每天先做「到期复习」，再做「新词」。</p>
+        </div>
+      </div>
+
+      <!-- 默写区 -->
+      <div id="studyRun" class="study-wrap" hidden>
+        <div class="card study-card">
+          <div class="progress-track"><div class="progress-fill" id="progressFill"></div></div>
+          <div class="study-body">
+            <div class="study-meta">
+              <span id="runMode">看中文写英文</span>
+              <span class="num" id="runProgress">1 / 20</span>
+            </div>
+            <div class="study-label" id="promptLabel">中文释义</div>
+            <div class="prompt" id="promptText">—</div>
+            <div class="row" id="promptSpeakRow" style="justify-content:center;margin:-14px 0 18px" hidden>
+              <button class="btn btn-sm" id="promptSpeak" title="听读音（Ctrl+空格）">🔊 朗读单词</button>
+            </div>
+            <input id="answerInput" class="answer-input" autocomplete="off" autocapitalize="off" spellcheck="false" placeholder="输入答案后回车" />
+            <div class="study-actions">
+              <button id="submitBtn" class="btn btn-primary" style="min-width:120px">提交</button>
+              <button id="revealBtn" class="btn">看答案</button>
+              <button id="quitBtn" class="btn btn-ghost">结束</button>
+            </div>
+            <div class="kbd-hint"><kbd>Enter</kbd> 提交 · <kbd>Esc</kbd> 看答案</div>
+            <div class="result" id="resultBox"></div>
+          </div>
+        </div>
+      </div>
+
+      <!-- 报告 -->
+      <div id="reportView" class="study-wrap" hidden>
+        <div class="card">
+          <div class="card-pad report-hero">
+            <div class="report-score num" id="reportScore">0 / 0</div>
+            <div class="report-accuracy" id="reportAcc">正确率 0%</div>
+            <div class="row" style="justify-content:center;margin-top:18px">
+              <button class="btn btn-primary" id="againBtn">再来一组</button>
+              <button class="btn" id="backBtn">返回</button>
+            </div>
+          </div>
+          <div class="card-head" id="wrongHead" hidden>
+            <h2>错题</h2><span class="hint" id="wrongHint"></span>
+          </div>
+          <div class="card-pad" id="wrongWrap" hidden><ul class="wrong-list" id="wrongList"></ul></div>
+        </div>
+      </div>
+    </section>
+
+    <!-- ---------------- 复习 ---------------- -->
+    <section class="page" id="page-review">
+      <div class="page-head">
+        <div><h1>复习</h1><p>到期、错题、整本，选一个直接开一组</p></div>
+      </div>
+      <div class="grid grid-3">
+        <div class="card card-pad">
+          <div class="kpi"><div class="label">到期复习</div><div class="value num" id="dueCount">—</div><div class="sub">已到下次复习时间</div></div>
+          <button class="btn btn-primary" style="margin-top:14px;width:100%" data-scope="due">开始到期复习</button>
+        </div>
+        <div class="card card-pad">
+          <div class="kpi"><div class="label">错题</div><div class="value num" id="errorCount">—</div><div class="sub">答错过的词，独立成组</div></div>
+          <button class="btn btn-primary" style="margin-top:14px;width:100%" data-scope="error">开始错题复习</button>
+        </div>
+        <div class="card card-pad">
+          <div class="kpi"><div class="label">昨日回顾</div><div class="value num" id="yesterdayCount">—</div><div class="sub">昨天背过的全部词，无视到期</div></div>
+          <button class="btn btn-primary" style="margin-top:14px;width:100%" data-scope="yesterday">开始昨日回顾</button>
+        </div>
+      </div>
+      <div class="card" style="margin-top:14px">
+        <div class="card-head"><h2>整本过一遍</h2><span class="hint">先到期，再没学过的，最后其他</span></div>
+        <div class="card-pad row row-wrap">
+          <input id="bookLimit" class="input num" type="number" min="5" max="200" value="30" style="width:110px" />
+          <button class="btn" data-scope="book">整本复习</button>
+          <span style="color:var(--faint);font-size:12px">题量上限 200</span>
+        </div>
+      </div>
+      <div class="notice" style="margin-top:14px">
+        提示：一组做完会出报告；错题会自动标记，下次可在「复习 → 错题」里单独练。
+      </div>
+    </section>
+
+    <!-- ---------------- 词书 ---------------- -->
+    <section class="page" id="page-books">
+      <div class="page-head">
+        <div><h1>词书</h1><p>新建、重命名、设每日新词量，管理里面的词</p></div>
+        <button class="btn btn-primary" id="newBookBtn">新建词书</button>
+      </div>
+      <div class="book-grid" id="bookGrid"></div>
+
+      <div class="card" style="margin-top:18px">
+        <div class="card-head">
+          <h2 id="wordsTitle">单词</h2>
+          <div class="row row-wrap">
+            <input id="wordSearch" class="input" placeholder="搜索单词或释义" style="width:200px;padding:6px 10px" />
+            <div class="seg" id="wordFilter">
+              <button data-filter="all" aria-pressed="true">全部</button>
+              <button data-filter="due" aria-pressed="false">到期</button>
+              <button data-filter="error" aria-pressed="false">错题</button>
+              <button data-filter="mastered" aria-pressed="false">已掌握</button>
+            </div>
+            <button class="btn btn-sm" id="addWordBtn">加词</button>
+          </div>
+        </div>
+        <div id="wordsBody"></div>
+        <div class="pager">
+          <span id="pageInfo" class="num">—</span>
+          <button class="btn btn-sm" id="prevPage">上一页</button>
+          <button class="btn btn-sm" id="nextPage">下一页</button>
+        </div>
+      </div>
+    </section>
+
+    <!-- ---------------- 记录 ---------------- -->
+    <section class="page" id="page-history">
+      <div class="page-head">
+        <div><h1>记录</h1><p>每天背过的单词，按日期查看；点日期看当天清单</p></div>
+        <div class="seg" id="historyRange">
+          <button data-days="14" aria-pressed="true">近 14 天</button>
+          <button data-days="30" aria-pressed="false">近 30 天</button>
+          <button data-days="90" aria-pressed="false">近 90 天</button>
+        </div>
+      </div>
+      <div class="history-layout">
+        <div class="card">
+          <div class="card-head"><h2>日期</h2><span class="hint" id="dayCount"></span></div>
+          <div id="daysBody"></div>
+        </div>
+        <div class="card">
+          <div class="card-head"><h2 id="dayTitle">当天单词</h2><span class="hint" id="daySummary"></span></div>
+          <div id="dayWords"></div>
+        </div>
+      </div>
+    </section>
+
+    <!-- ---------------- 统计 ---------------- -->
+    <section class="page" id="page-stats">
+      <div class="page-head">
+        <div><h1>统计</h1><p id="statsSub">今日 / 本周 / 本月</p></div>
+        <div class="seg" id="rangeSeg">
+          <button data-range="day" aria-pressed="true">今日</button>
+          <button data-range="week" aria-pressed="false">本周</button>
+          <button data-range="month" aria-pressed="false">本月</button>
+        </div>
+      </div>
+      <div class="grid grid-4">
+        <div class="card kpi"><div class="label">新词</div><div class="value num" id="kNew">0</div><div class="sub" id="kNewSub">目标 20</div></div>
+        <div class="card kpi"><div class="label">复习</div><div class="value num" id="kReview">0</div><div class="sub">本次区间</div></div>
+        <div class="card kpi"><div class="label">正确率</div><div class="value num" id="kAcc">0%</div><div class="sub">区间内所有作答</div></div>
+        <div class="card kpi"><div class="label">连续打卡</div><div class="value num" id="kStreak">0</div><div class="sub">天</div></div>
+      </div>
+      <div class="grid grid-2" style="margin-top:14px">
+        <div class="card">
+          <div class="card-head"><h2>近 7 天</h2>
+            <span class="hint"><span style="display:inline-block;width:8px;height:8px;background:var(--accent);border-radius:2px"></span> 新词
+            <span style="display:inline-block;width:8px;height:8px;background:var(--line-strong);border-radius:2px;margin-left:8px"></span> 复习</span>
+          </div>
+          <div class="card-pad"><svg class="chart" id="chart" viewBox="0 0 560 170" preserveAspectRatio="none"></svg></div>
+        </div>
+        <div class="card">
+          <div class="card-head"><h2>进度</h2><span class="hint" id="planHint">每日新词 20</span></div>
+          <div class="card-pad">
+            <div class="kpi" style="padding:0"><div class="label">完成率</div><div class="value num" id="kComp">0%</div><div class="sub" id="kCompSub">0 / 0 目标</div></div>
+            <div style="height:8px;background:var(--line);border-radius:99px;margin-top:14px;overflow:hidden">
+              <div id="compFill" style="height:100%;width:0;background:var(--accent);transition:width .3s var(--t)"></div>
+            </div>
+            <div class="row" style="justify-content:space-between;margin-top:16px;color:var(--muted);font-size:12px">
+              <span>总词数 <b class="num" id="kTotal">0</b></span>
+              <span>已掌握 <b class="num" id="kMastered">0</b></span>
+              <span>待复习 <b class="num" id="kDue">0</b></span>
+            </div>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- ---------------- 导入导出 ---------------- -->
+    <section class="page" id="page-data">
+      <div class="page-head">
+        <div><h1>导入导出</h1><p>CSV：<code style="font-family:var(--mono)">word,meaning</code>，可选第 3/4 列 <code style="font-family:var(--mono)">phrases,examples</code>（多条用 <code style="font-family:var(--mono)">|</code> 分隔）</p></div>
+      </div>
+      <div class="grid grid-2">
+        <div class="card">
+          <div class="card-head"><h2>导入 CSV</h2><span class="hint">UTF-8 / GBK 自动识别</span></div>
+          <div class="card-pad">
+            <div class="drop" id="dropZone">
+              <p style="margin:0 0 6px">把 CSV 拖到这里，或</p>
+              <button class="btn" id="pickFileBtn">选择文件</button>
+              <input type="file" id="fileInput" accept=".csv,text/csv" hidden />
+            </div>
+            <div id="importResult" class="notice" style="margin-top:12px" hidden></div>
+          </div>
+        </div>
+        <div class="card">
+          <div class="card-head"><h2>导出备份</h2><span class="hint">JSON 含全部字段</span></div>
+          <div class="card-pad grid" style="gap:10px">
+            <button class="btn" id="exportJson">导出 JSON</button>
+            <button class="btn" id="exportCsv">导出 CSV</button>
+            <div class="notice" style="margin-top:4px">
+              JSON 会带上 FSRS 相关字段与复习日志数，适合换机迁移；CSV 方便丢进表格里看。
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <div class="card">
+        <div class="card-head"><h2>AI 补齐用法（Cloudflare Workers AI）</h2><span class="hint" id="aiStatus">检测中…</span></div>
+        <div class="card-pad grid" style="gap:12px">
+          <div class="row row-wrap">
+            <span style="font-size:12px;color:var(--muted)">模型</span>
+            <select id="aiModel" class="input" style="max-width:280px;padding:6px 10px"></select>
+            <button class="btn btn-sm" id="aiRefresh">重新检测</button>
+          </div>
+          <div class="row row-wrap">
+            <span style="font-size:12px;color:var(--muted)">每批</span>
+            <input id="aiLimit" class="input num" type="number" min="1" max="200" value="20" style="width:86px;padding:6px 10px" />
+            <button class="btn btn-primary" id="aiFill">补齐当前词书缺失的用法</button>
+          </div>
+          <div class="notice" id="aiProgress" hidden></div>
+          <div class="notice" style="margin-top:0">
+            AI 使用 Cloudflare 托管的免费模型，生成结果会保存到云端数据库。
+            免费额度暂时用完时不影响背诵；单个词也可以在默写结果里点「✨ AI 生成」。
+          </div>
+        </div>
+      </div>
+
+      <div class="card" style="margin-top:14px">
+        <div class="card-head"><h2>PDF 导入（第二版）</h2><span class="chip">未开放</span></div>
+        <div class="card-pad" style="color:var(--muted);font-size:13px">
+          PDF 抽词仍计划在后续版本提供。当前版本请使用 CSV：<br />
+          <code style="font-family:var(--mono);color:var(--text)">word,meaning</code> 两列，带不带表头都能读。
+        </div>
+      </div>
+    </section>
+  </main>
+</div>
+<!-- 单词详情（今日计划里点单词打开） -->
+<div class="modal" id="wordModal" hidden>
+  <div class="modal-card">
+    <div class="card-head">
+      <h2 class="row" style="gap:8px">
+        <span id="wdWord">—</span>
+        <span class="chip" id="wdPos" hidden></span>
+      </h2>
+      <div class="row">
+        <button class="btn btn-sm" id="wdSpeak" title="朗读">🔊 朗读</button>
+        <button class="btn btn-sm btn-ghost" id="wdClose">关闭</button>
+      </div>
+    </div>
+    <div class="card-pad" style="max-height:66vh;overflow:auto">
+      <div class="wd-meaning" id="wdMeaning"></div>
+      <div class="wd-sec">
+        <div class="wd-h">词组 / 搭配</div>
+        <ul id="wdPhrases" class="wd-list"></ul>
+      </div>
+      <div class="wd-sec">
+        <div class="wd-h">例句</div>
+        <ul id="wdExamples" class="wd-list"></ul>
+      </div>
+      <div class="row" style="margin-top:16px;gap:8px">
+        <button class="btn btn-sm" id="wdAI">✨ AI 生成</button>
+        <button class="btn btn-sm" id="wdEdit">编辑用法</button>
+        <span class="hint" id="wdHint" style="margin-left:auto"></span>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- 今日计划 -->
+<div class="modal" id="planModal" hidden>
+  <div class="modal-card wide">
+    <div class="card-head">
+      <h2 id="planTitle">今日计划</h2>
+      <div class="row">
+        <span class="hint" id="planDate"></span>
+        <button class="btn btn-sm btn-ghost" id="planClose">关闭</button>
+      </div>
+    </div>
+    <div class="card-pad" style="max-height:68vh;overflow:auto">
+      <div class="row" style="justify-content:space-between;margin-bottom:8px">
+        <span class="hint" id="planSummary">加载中…</span>
+        <button class="btn btn-sm btn-primary" id="planStart">开始这一组</button>
+      </div>
+      <div class="plan-bar"><div id="planFill"></div></div>
+      <div id="planWords"></div>
+    </div>
+  </div>
+</div>
+
+<!-- 当日记忆 + 对话文章生成 -->
+<div id="toasts"></div>
+<div class="modal" id="dayModal" hidden>
+  <div class="modal-card wide">
+    <div class="card-head">
+      <h2 id="dayMemTitle">当日记忆</h2>
+      <div class="row">
+        <span class="hint" id="dayMemDate"></span>
+        <button class="btn btn-sm btn-ghost" id="dayMemClose">关闭</button>
+      </div>
+    </div>
+    <div class="card-pad" style="max-height:66vh;overflow:auto">
+      <div class="row" style="justify-content:space-between;margin-bottom:6px">
+        <span class="hint" id="dayMemCount">加载中…</span>
+        <span class="hint">错题会自动带标记</span>
+      </div>
+      <div id="dayMemWords"></div>
+
+      <div class="story-panel">
+        <div class="row row-wrap" style="gap:12px;align-items:flex-end">
+          <div class="field" style="flex:0 0 auto">
+            <label>类型</label>
+            <div class="seg" id="storyStyle">
+              <button data-style="story" aria-pressed="true">场景故事</button>
+              <button data-style="dialogue" aria-pressed="false">日常对话</button>
+            </div>
+          </div>
+          <div class="field" style="width:118px">
+            <label>长度（words）</label>
+            <input id="storyLen" class="input num" type="number" min="50" max="800" value="200" />
+          </div>
+          <div class="row" style="gap:6px;padding-bottom:1px">
+            <button class="btn btn-sm" data-len="100">100</button>
+            <button class="btn btn-sm" data-len="200">200</button>
+            <button class="btn btn-sm" data-len="300">300</button>
+          </div>
+          <span style="flex:1"></span>
+          <button class="btn btn-primary" id="storyGen">对话文章生成</button>
+        </div>
+        <div class="notice" id="storyStatus" style="margin-top:10px" hidden></div>
+        <div id="storyOut" class="story-out" hidden></div>
+        <div class="row" id="storyActs" hidden style="margin-top:8px;gap:10px">
+          <button class="btn btn-sm" id="storyCopy">复制全文</button>
+          <span class="hint" id="storyMeta"></span>
+        </div>
+        <div class="hint" id="storyHistory" style="margin-top:8px"></div>
+      </div>
+    </div>
+  </div>
+</div>
+
+
+<!-- 用法 / 例句 编辑弹窗 -->
+<div class="modal" id="usageModal" hidden>
+  <div class="modal-card">
+    <div class="card-head">
+      <h2 id="usageTitle">用法 / 例句</h2>
+      <button class="btn btn-sm btn-ghost" id="usageClose">关闭</button>
+    </div>
+    <div class="card-pad grid" style="gap:14px">
+      <div class="field">
+        <label>词性（如 n. / v. / adj.）</label>
+        <input class="input" id="usagePos" placeholder="n. / v." style="max-width:220px" />
+      </div>
+      <div class="field">
+        <label>词组 / 搭配（每行一条）</label>
+        <textarea class="input" id="usagePhrases" rows="4" placeholder="look forward to sth. 期待某事&#10;in advance 提前"></textarea>
+      </div>
+      <div class="field">
+        <label>例句（每行一条，建议英文 + 中文）</label>
+        <textarea class="input" id="usageExamples" rows="5" placeholder="I look forward to meeting you. 我期待与你见面。"></textarea>
+      </div>
+      <div class="row" style="justify-content:flex-end">
+        <button class="btn" id="usageAI" title="用 Cloudflare Workers AI 生成（不会自动保存）">✨ AI 生成</button>
+        <span style="flex:1"></span>
+        <button class="btn" id="usageCancel">取消</button>
+        <button class="btn btn-primary" id="usageSave">保存</button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<script>
+/* ==========================================================================
+   前端：原生 JS，无框架、无外部资源
+   ========================================================================== */
+const $ = (s, r = document) => r.querySelector(s);
+const $$ = (s, r = document) => [...r.querySelectorAll(s)];
+const nf = (n) => (n ?? 0).toLocaleString("en-US");
+
+const state = {
+  settings: {},
+  books: [],
+  bookId: null,
+  page: "study",
+  mode: "A",
+  scope: "new",
+  limit: 20,
+  words: { page: 1, size: 12, filter: "all", q: "", total: 0 },
+  range: "day",
+  historyDays: 14,
+  historyList: [],
+  day: null,
+  usageWord: null,
+  wordItem: null,
+  ai: null,
+  dayBook: null,
+  dayDate: null,
+  storyStyle: "story",
+  planBook: null,
+  planItems: [],
+  pendingIds: null,
+  promptWord: "",
+  committing: false,
+  session: null,      // {session_id, items, done, total, mode}
+  idx: 0,
+  results: [],
+  autoNext: true,
+  startedAt: 0,
+};
+
+/* ---------------------------- 基础请求 ---------------------------- */
+async function api(path, opts = {}) {
+  const res = await fetch(path, {
+    headers: opts.body instanceof FormData ? {} : { "Content-Type": "application/json" },
+    ...opts,
+  });
+  const text = await res.text();
+  let data = null;
+  try { data = text ? JSON.parse(text) : null; } catch { data = { raw: text }; }
+  if (!res.ok) throw new Error((data && (data.detail || data.raw)) || ("HTTP " + res.status));
+  return data;
+}
+
+function toast(msg, kind = "") {
+  const box = $("#toasts");
+  const el = document.createElement("div");
+  el.className = "toast " + kind;
+  el.textContent = msg;
+  box.appendChild(el);
+  setTimeout(() => { el.style.opacity = "0"; el.style.transform = "translateY(4px)"; }, 2200);
+  setTimeout(() => el.remove(), 2500);
+}
+
+/* ---------------------------- 朗读（系统语音，纯本地） ---------------------------- */
+const TTS = {
+  supported: typeof window !== "undefined" && "speechSynthesis" in window,
+  voice: null,
+  warned: false,
+  init() {
+    if (!this.supported) return;
+    const pick = () => {
+      let voices = [];
+      try { voices = window.speechSynthesis.getVoices() || []; } catch (e) { voices = []; }
+      const en = voices.filter((v) => /^en([-_]|$)/i.test(v.lang || ""));
+      // 优先 Windows 本机语音（离线可用），其次任意英文语音
+      this.voice = en.find((v) => /microsoft|david|zira|mark|aria|guy/i.test(v.name || ""))
+        || en.find((v) => v.localService)
+        || en[0] || null;
+      if (this.voice) this.supported = true;
+    };
+    pick();
+    try {
+      window.speechSynthesis.addEventListener("voiceschanged", pick);
+    } catch (e) { window.speechSynthesis.onvoiceschanged = pick; }
+  },
+  speak(text, btn) {
+    const t = (text || "").trim();
+    if (!t) return;
+    if (!this.supported) {
+      if (!this.warned) {
+        this.warned = true;
+        toast("这个浏览器/系统没有可用的英文语音", "bad");
+      }
+      return;
+    }
+    try {
+      window.speechSynthesis.cancel();
+      const u = new SpeechSynthesisUtterance(t);
+      u.lang = (this.voice && this.voice.lang) || "en-US";
+      if (this.voice) u.voice = this.voice;
+      u.rate = 0.92;
+      u.pitch = 1;
+      if (btn) {
+        btn.classList.add("busy");
+        u.onend = () => btn.classList.remove("busy");
+        u.onerror = () => btn.classList.remove("busy");
+      }
+      window.speechSynthesis.speak(u);
+    } catch (e) {
+      toast("朗读失败：" + e.message, "bad");
+    }
+  },
+};
+TTS.init();
+
+const SPEAKER_SVG = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M11 5 6 9H3v6h3l5 4V5z"/><path d="M15.5 8.5a5 5 0 0 1 0 7"/><path d="M18.5 6a9 9 0 0 1 0 12"/></svg>';
+
+/** 生成一个「朗读」小按钮，点一下读 text。 */
+function speakBtn(text) {
+  const b = document.createElement("button");
+  b.type = "button";
+  b.className = "speak-btn";
+  b.title = "朗读：" + text;
+  b.setAttribute("aria-label", "朗读 " + text);
+  b.innerHTML = SPEAKER_SVG;
+  b.addEventListener("click", (e) => {
+    e.stopPropagation();          // 不要触发外层卡片的点击（选词书等）
+    e.preventDefault();
+    TTS.speak(text, b);
+  });
+  return b;
+}
+
+/** 让某个元素（单词文本）本身也能点读：点一下就读。 */
+function speakable(el, text) {
+  el.style.cursor = "pointer";
+  el.title = "点击朗读：" + text;
+  el.addEventListener("click", (e) => {
+    e.stopPropagation();
+    TTS.speak(text);
+  });
+  return el;
+}
+
+/* ---------------------------- 主题 ---------------------------- */
+function applyTheme(t) {
+  const dark = t === "dark" || (t === "auto" && matchMedia("(prefers-color-scheme: dark)").matches);
+  document.documentElement.dataset.theme = dark ? "dark" : "light";
+  $("#themeLabel").textContent = dark ? "深色" : "浅色";
+}
+async function toggleTheme() {
+  const cur = document.documentElement.dataset.theme === "dark" ? "light" : "dark";
+  applyTheme(cur);
+  state.settings.theme = cur;
+  try { await api("/api/settings", { method: "PUT", body: JSON.stringify({ values: { theme: cur } }) }); }
+  catch (e) { /* 主题切换失败不打扰用户 */ }
+}
+
+/* ---------------------------- 页面切换 ---------------------------- */
+function nav(page) {
+  state.page = page;
+  $$(".nav-item").forEach((b) => {
+    if (b.dataset.page === page) b.setAttribute("aria-current", "page");
+    else b.removeAttribute("aria-current");
+  });
+  $$(".page").forEach((p) => p.classList.toggle("active", p.id === "page-" + page));
+  if (page === "books") loadBooks();
+  if (page === "stats") loadStats();
+  if (page === "history") loadHistory();
+  if (page === "review") loadReviewCounts();
+}
+$$(".nav-item").forEach((b) => b.addEventListener("click", () => nav(b.dataset.page)));
+
+/* ---------------------------- 词书 ---------------------------- */
+async function loadBooks(keepId) {
+  const books = await api("/api/books");
+  state.books = books;
+  if (keepId && books.some((b) => b.id === keepId)) state.bookId = keepId;
+  if (!books.some((b) => b.id === state.bookId)) state.bookId = books[0] ? books[0].id : null;
+  renderBookSelect();
+  renderBookGrid();
+  updateBadges();
+  if (state.bookId) { await loadWords(); }
+}
+
+function renderBookSelect() {
+  const sel = $("#bookSelect");
+  sel.innerHTML = "";
+  if (!state.books.length) {
+    const o = document.createElement("option");
+    o.textContent = "（还没有词书）";
+    sel.appendChild(o);
+    return;
+  }
+  state.books.forEach((b) => {
+    const o = document.createElement("option");
+    o.value = b.id;
+    o.textContent = `${b.name}（${b.word_count}）`;
+    if (b.id === state.bookId) o.selected = true;
+    sel.appendChild(o);
+  });
+}
+
+function renderBookGrid() {
+  const grid = $("#bookGrid");
+  grid.innerHTML = "";
+  if (!state.books.length) {
+    grid.innerHTML = `<div class="card empty" style="grid-column:1/-1">
+      <p>还没有词书。</p><p style="font-size:12px;color:var(--faint)">点右上角「新建词书」，然后去导入页贴一份 CSV。</p></div>`;
+    return;
+  }
+  state.books.forEach((b) => {
+    const card = document.createElement("div");
+    card.className = "book-card" + (b.id === state.bookId ? " active" : "");
+    card.innerHTML = `
+      <div class="name"></div>
+      <div class="desc"></div>
+      <div class="book-stats">
+        <span class="num">${nf(b.word_count)} 词</span>
+        <span class="num">掌握 ${nf(b.mastered_count)}</span>
+        <span class="num">错题 ${nf(b.error_count)}</span>
+      </div>
+      <div class="plan">每日新词
+        <input class="input num" type="number" min="0" max="500" value="${b.daily_new}" style="width:74px;padding:3px 8px" />
+        <button class="btn btn-sm" data-act="save">保存</button>
+      </div>
+      <div class="book-actions">
+        <button class="btn btn-sm" data-act="today">当日记忆</button>
+        <button class="btn btn-sm" data-act="plan">今日计划</button>
+        <button class="btn btn-sm" data-act="rename">重命名</button>
+        <button class="btn btn-sm btn-danger" data-act="del">删除词书</button>
+      </div>`;
+    card.querySelector(".name").textContent = b.name;
+    card.querySelector(".desc").textContent = b.description || "（无描述）";
+    card.addEventListener("click", async (e) => {
+      const act = e.target.dataset.act;
+      if (act === "save") {
+        const v = Number(card.querySelector("input").value || 0);
+        try {
+          await api(`/api/books/${b.id}/plan`, { method: "PUT", body: JSON.stringify({ daily_new: v }) });
+          toast("每日新词已保存", "ok"); loadBooks(b.id);
+        } catch (err) { toast(err.message, "bad"); }
+        return;
+      }
+      if (act === "today") {
+        openDayMemory(b);
+        return;
+      }
+      if (act === "plan") {
+        openTodayPlan(b);
+        return;
+      }
+      if (act === "rename") {
+        const name = prompt("新的词书名称：", b.name);
+        if (name == null || !name.trim()) return;
+        try {
+          await api(`/api/books/${b.id}`, { method: "PUT", body: JSON.stringify({ name: name.trim(), description: b.description || "" }) });
+          toast("已重命名", "ok"); loadBooks(b.id);
+        } catch (err) { toast(err.message, "bad"); }
+        return;
+      }
+      if (act === "del") {
+        const msg = `确定删除词书「${b.name}」？\n\n会同时删除 ${b.word_count} 个单词和它们的复习记录，无法撤销。\n建议先在「导入导出」里导出 JSON 备份。`;
+        if (!confirm(msg)) return;
+        try {
+          await api(`/api/books/${b.id}`, { method: "DELETE" });
+          toast("词书已删除", "ok");
+          if (state.bookId === b.id) state.bookId = null;
+          const rest = state.books.filter((x) => x.id !== b.id);
+          await loadBooks(rest[0] ? rest[0].id : null);
+          loadStats(); loadReviewCounts();
+        } catch (err) { toast(err.message, "bad"); }
+        return;
+      }
+      if (e.target.closest("input,button")) return;
+      state.bookId = b.id;
+      renderBookSelect(); renderBookGrid(); loadWords(); loadStats(); loadReviewCounts();
+    });
+    grid.appendChild(card);
+  });
+}
+
+async function newBook() {
+  const name = prompt("词书名称：");
+  if (!name || !name.trim()) return;
+  const desc = prompt("一句话描述（可留空）：") || "";
+  try {
+    const r = await api("/api/books", { method: "POST", body: JSON.stringify({ name: name.trim(), description: desc.trim() }) });
+    await loadBooks(r.id);
+    state.bookId = r.id; renderBookSelect();
+    toast("词书已创建", "ok");
+  } catch (e) { toast(e.message, "bad"); }
+}
+
+/* ---------------------------- 单词表 ---------------------------- */
+async function loadWords() {
+  if (!state.bookId) { $("#wordsBody").innerHTML = emptyWords(); return; }
+  const { page, size, filter, q } = state.words;
+  const url = `/api/books/${state.bookId}/words?page=${page}&size=${size}&filter=${filter}&q=${encodeURIComponent(q)}`;
+  try {
+    const data = await api(url);
+    state.words.total = data.total;
+    renderWords(data.items);
+    const pick = state.books.find((b) => b.id === state.bookId);
+    $("#wordsTitle").textContent = pick ? `单词 · ${pick.name}` : "单词";
+    const pages = Math.max(1, Math.ceil(data.total / size));
+    $("#pageInfo").textContent = `第 ${page} / ${pages} 页 · 共 ${nf(data.total)} 词`;
+    $("#prevPage").disabled = page <= 1;
+    $("#nextPage").disabled = page >= pages;
+  } catch (e) { $("#wordsBody").innerHTML = emptyWords(e.message); }
+}
+
+function emptyWords(msg) {
+  return `<div class="empty"><p>${msg || "这里还没有词。"}</p>
+  <p style="font-size:12px;color:var(--faint)">去「导入导出」贴一份 CSV，或点「加词」手动加。</p></div>`;
+}
+
+function renderWords(items) {
+  if (!items.length) { $("#wordsBody").innerHTML = emptyWords(); return; }
+  const tbody = document.createElement("tbody");
+  items.forEach((w) => {
+    const tr = document.createElement("tr");
+    const status = w.is_mastered ? `<span class="chip ok">已掌握</span>`
+      : w.is_error ? `<span class="chip err">错题</span>`
+      : w.next_review_at ? `<span class="chip">复习中</span>` : `<span class="chip">未学</span>`;
+    tr.innerHTML = `
+      <td class="word-cell"></td>
+      <td class="meaning-cell"></td>
+      <td class="num" style="color:var(--muted)"></td>
+      <td>${status}</td>
+      <td style="text-align:right;white-space:nowrap">
+        <button class="btn btn-sm" data-act="usage">${w.has_detail ? "用法 ✓" : "用法"}</button>
+        <button class="btn btn-sm" data-act="master">${w.is_mastered ? "取消掌握" : "设为掌握"}</button>
+        <button class="btn btn-sm" data-act="edit">改释义</button>
+        <button class="btn btn-sm" data-act="reset">重置</button>
+        <button class="btn btn-sm btn-danger" data-act="del">删</button>
+      </td>`;
+    const wc = tr.querySelector(".word-cell");
+    wc.textContent = w.word;
+    const spk = speakBtn(w.word);
+    spk.style.marginLeft = "8px";
+    wc.appendChild(spk);
+    tr.querySelector(".meaning-cell").textContent = w.meaning;
+    tr.querySelector(".meaning-cell").title = w.meaning;
+    tr.querySelector("td.num").textContent = w.next_review_at ? w.next_review_at.slice(0, 10) : "—";
+
+    tr.addEventListener("click", async (e) => {
+      const act = e.target.dataset.act;
+      if (!act) return;
+      try {
+        if (act === "edit") {
+          const m = prompt("新的释义：", w.meaning);
+          if (m == null) return;
+          await api(`/api/words/${w.id}`, { method: "PUT", body: JSON.stringify({ meaning: m }) });
+          toast("已更新释义", "ok");
+        } else if (act === "usage") {
+          openUsage(w);
+          return;                       // 弹窗打开时不刷新表格
+        } else if (act === "master") {
+          await api(`/api/words/${w.id}`, { method: "PUT", body: JSON.stringify({ is_mastered: w.is_mastered ? 0 : 1 }) });
+          toast(w.is_mastered ? "已取消掌握" : "已标记掌握", "ok");
+        } else if (act === "reset") {
+          if (!confirm(`重置「${w.word}」的学习进度？`)) return;
+          await api(`/api/words/${w.id}`, { method: "PUT", body: JSON.stringify({ reset_progress: true }) });
+          toast("已重置", "ok");
+        } else if (act === "del") {
+          if (!confirm(`删除「${w.word}」？`)) return;
+          await api(`/api/words/${w.id}`, { method: "DELETE" });
+          toast("已删除", "ok");
+        }
+        await loadWords(); loadBooks(state.bookId);
+      } catch (err) { toast(err.message, "bad"); }
+    });
+    tbody.appendChild(tr);
+  });
+  $("#wordsBody").innerHTML = `<table><thead><tr>
+      <th style="width:180px">单词</th><th>释义</th><th style="width:110px">下次复习</th>
+      <th style="width:90px">状态</th><th style="width:210px"></th>
+    </tr></thead><tbody></tbody></table>`;
+  $("#wordsBody tbody").replaceWith(tbody);
+}
+
+async function addWord() {
+  if (!state.bookId) return toast("先选一个词书", "bad");
+  const word = prompt("单词："); if (!word) return;
+  const meaning = prompt("中文释义："); if (!meaning) return;
+  try {
+    await api("/api/words", { method: "POST", body: JSON.stringify({ book_id: state.bookId, word, meaning }) });
+    toast("已添加", "ok"); loadWords(); loadBooks(state.bookId);
+  } catch (e) { toast(e.message, "bad"); }
+}
+
+/* ---------------------------- 会话 ---------------------------- */
+function startSession(scope, limit, ids) {
+  if (!state.bookId) { toast("还没有词书", "bad"); return; }
+  state.scope = scope || state.scope;
+  state.limit = limit || Number($("#limitInput").value || 20);
+  state.pendingIds = ids || null;
+  runSession().catch((e) => toast(e.message, "bad"));
+}
+
+async function runSession() {
+  const body = { book_id: state.bookId, mode: state.mode, scope: state.scope, limit: state.limit };
+  if (state.pendingIds && state.pendingIds.length) body.ids = state.pendingIds;
+  const data = await api("/api/session/start", { method: "POST", body: JSON.stringify(body) });
+  state.pendingIds = null;
+  state.session = data;
+  state.idx = 0;
+  state.results = [];
+  state.startedAt = Date.now();
+  $("#studySetup").hidden = true;
+  $("#reportView").hidden = true;
+  $("#studyRun").hidden = false;
+  $("#runMode").textContent = state.mode === "A" ? "看中文写英文" : "看英文写中文";
+  $("#promptLabel").textContent = state.mode === "A" ? "中文释义" : "英文单词";
+  const first = data.items.findIndex((i) => !i.answered);
+  state.idx = first < 0 ? 0 : first;
+  renderQuestion();
+  $("#answerInput").focus();
+}
+
+function renderQuestion() {
+  const s = state.session;
+  if (!s) return;
+  const item = s.items[state.idx];
+  if (!item) return;
+  const done = state.idx;
+  $("#runProgress").textContent = `${Math.min(done + 1, s.total)} / ${s.total}`;
+  $("#progressFill").style.width = `${(done / Math.max(1, s.total)) * 100}%`;
+  $("#promptText").textContent = item.prompt;
+  $("#promptText").classList.toggle("small", (item.prompt || "").length > 46);
+  // 模式 B 的题面就是英文单词，给一个朗读按钮（模式 A 会剧透答案，不显示）
+  const speakRow = $("#promptSpeakRow");
+  if (state.mode === "B") {
+    speakRow.hidden = false;
+    $("#promptSpeak").onclick = () => TTS.speak(item.prompt, $("#promptSpeak"));
+    state.promptWord = item.prompt;
+  } else {
+    speakRow.hidden = true;
+    state.promptWord = "";
+  }
+  const input = $("#answerInput");
+  input.value = "";
+  input.disabled = false;
+  state.committing = false;
+  input.focus();
+  $("#resultBox").className = "result";
+  $("#resultBox").innerHTML = "";
+  $("#submitBtn").textContent = "提交";
+}
+
+async function submitAnswer(text, reveal) {
+  const s = state.session;
+  if (!s) return;
+  if (state.committing) return;              // 防连按重复提交
+  const item = s.items[state.idx];
+  if (!item) return;
+  const input = $("#answerInput");
+  const typed = (text ?? input.value ?? "").trim();
+  // 空提交 = 看答案（记为答错并进入下一题）；点「看答案」同理
+  const isReveal = !!reveal || typed === "";
+  const answer = isReveal ? "" : (text ?? input.value);
+  state.committing = true;
+  input.disabled = true;
+  $("#submitBtn").disabled = true;
+  try {
+    const r = await api("/api/session/answer", {
+      method: "POST",
+      body: JSON.stringify({
+        session_id: s.session_id, word_id: item.word_id,
+        answer, elapsed_ms: Date.now() - state.startedAt,
+        retry: !isReveal,
+      }),
+    });
+    if (r.retry) {
+      // 答错但没放弃：停在原地重试，不显示答案、不前进
+      showRetry(r, answer);
+      input.disabled = false;
+      input.focus();
+      input.select();
+      $("#submitBtn").textContent = "再试一次";
+      return;
+    }
+    showResult(r, answer);
+    state.results.push(r);
+    s.done++;
+    $("#submitBtn").textContent = "下一题 →";
+  } catch (e) {
+    toast(e.message, "bad");
+    input.disabled = false;
+  } finally {
+    state.committing = false;
+    $("#submitBtn").disabled = false;
+  }
+}
+
+/** 答错但还在原地：只提示，不给答案。 */
+function showRetry(r, answer) {
+  const box = $("#resultBox");
+  box.className = "result show bad";
+  box.innerHTML = `✗ 不对，再试一次 <div class="answer-line">你写了：<b></b>（已试 ${r.tries || 1} 次）</div>
+    <div class="answer-line" style="color:var(--faint);font-size:11.5px">
+      想不出来就按 Esc 或直接空着提交，会显示答案。
+    </div>`;
+  box.querySelector("b").textContent = answer || "（空）";
+}
+
+function showResult(r, answer) {
+  const box = $("#resultBox");
+  box.className = "result show " + (r.correct ? "ok" : "bad");
+  box.innerHTML = r.correct
+    ? `✓ 正确 <div class="answer-line">标准答案：<b></b></div>`
+    : `✗ 答错 <div class="answer-line">你写了：<b></b> · 正确答案：<b></b></div>`;
+  const bs = box.querySelectorAll("b");
+  if (r.correct) bs[0].textContent = r.canonical;
+  else { bs[0].textContent = answer || "（空）"; bs[1].textContent = r.canonical; }
+  const nextTs = (r.next_review_at || "").slice(0, 16);
+  box.innerHTML += `<div class="answer-line" style="color:var(--faint);font-size:11.5px">下次复习：${nextTs} UTC</div>`;
+
+  // 无论答对答错，都展示这个词的用法 / 例句
+  box.appendChild(buildUsage(r));
+
+  // 只有"已记录"的作答才自动翻页；答对快一点，看答案慢一点（要读）
+  const delay = state.autoNext ? (r.correct ? 1200 : 2400) : 999999;
+  setTimeout(() => { if (state.session && !$("#studyRun").hidden) advance(); }, delay);
+}
+
+/** 构造「用法 / 例句」区块；没有内容时给一个去补充的入口。 */
+function buildUsage(r) {
+  const wrap = document.createElement("div");
+  wrap.className = "usage";
+  const phrases = (r.phrases || "").split("\n").filter((x) => x.trim());
+  const examples = (r.examples || "").split("\n").filter((x) => x.trim());
+
+  const h = document.createElement("h4");
+  h.textContent = `${r.word || ""} · 用法 / 例句`;
+  if (r.word) {
+    const hb = speakBtn(r.word);
+    hb.style.cssText += ";margin-left:8px;vertical-align:middle;width:24px;height:24px";
+    h.appendChild(hb);
+  }
+  wrap.appendChild(h);
+
+  if (!phrases.length && !examples.length) {
+    const none = document.createElement("div");
+    none.className = "none";
+    none.textContent = "这个词还没有词组和例句 · ";
+    const btn = document.createElement("button");
+    btn.className = "btn btn-sm";
+    btn.textContent = "现在补充";
+    btn.addEventListener("click", () => openUsage({ id: r.word_id, word: r.word, meaning: r.meaning }));
+    none.appendChild(btn);
+    if (state.ai && state.ai.available) {
+      const sep = document.createElement("span");
+      sep.textContent = " 或 ";
+      none.appendChild(sep);
+      const aiBtn = document.createElement("button");
+      aiBtn.className = "btn btn-sm";
+      aiBtn.textContent = "✨ AI 生成";
+      aiBtn.addEventListener("click", async () => {
+        aiBtn.disabled = true;
+        aiBtn.textContent = "生成中…";
+        try {
+          const g = await api("/api/ai/usage", { method: "POST", body: JSON.stringify({ word_id: r.word_id, save: true }) });
+          r.phrases = g.phrases;
+          r.examples = g.examples;
+          wrap.replaceWith(buildUsage(r));
+          toast("已用 AI 生成并保存", "ok");
+        } catch (e) {
+          toast(e.message, "bad");
+          aiBtn.disabled = false;
+          aiBtn.textContent = "✨ AI 生成";
+        }
+      });
+      none.appendChild(aiBtn);
+    }
+    wrap.appendChild(none);
+    return wrap;
+  }
+
+  const section = (title, lines) => {
+    if (!lines.length) return;
+    const t = document.createElement("div");
+    t.style.cssText = "font-size:11.5px;color:var(--faint);margin:2px 0 3px";
+    t.textContent = title;
+    wrap.appendChild(t);
+    const ul = document.createElement("ul");
+    lines.forEach((ln) => {
+      const li = document.createElement("li");
+      li.textContent = ln;
+      ul.appendChild(li);
+    });
+    wrap.appendChild(ul);
+  };
+  section("词组搭配", phrases);
+  section("例句", examples);
+  return wrap;
+}
+
+/* ---------------------------- 用法编辑 ---------------------------- */
+async function openUsage(w) {
+  state.usageWord = w;
+  $("#usageTitle").textContent = `用法 / 例句 · ${w.word || ""}`;
+  $("#usagePhrases").value = "";
+  $("#usageExamples").value = "";
+  $("#usagePos").value = "";
+  $("#usageModal").hidden = false;
+  try {
+    const d = await api(`/api/words/${w.id}/detail`);
+    $("#usagePhrases").value = d.phrases || "";
+    $("#usageExamples").value = d.examples || "";
+    $("#usagePos").value = d.pos || "";
+  } catch (e) { toast(e.message, "bad"); }
+  $("#usagePhrases").focus();
+}
+function closeUsage() {
+  $("#usageModal").hidden = true;
+  state.usageWord = null;
+}
+async function saveUsage() {
+  if (!state.usageWord) return;
+  const wid = state.usageWord.id;
+  try {
+    const r = await api(`/api/words/${wid}/detail`, {
+      method: "PUT",
+      body: JSON.stringify({
+        phrases: $("#usagePhrases").value,
+        examples: $("#usageExamples").value,
+        pos: $("#usagePos").value,
+      }),
+    });
+    toast(r.cleared ? "已清空用法" : "用法已保存", "ok");
+    closeUsage();
+    loadWords();
+    if (state.wordItem && state.wordItem.word_id === wid && !$("#wordModal").hidden) {
+      openWordDetail(state.wordItem);          // 详情弹窗开着就刷新一下
+    }
+  } catch (e) { toast(e.message, "bad"); }
+}
+
+/* ---------------------------- 单词详情（今日计划里点单词） ---------------------------- */
+function wordLink(el, item) {
+  el.style.cursor = "pointer";
+  el.title = "点击查看：词性 / 用法 / 例句";
+  el.addEventListener("click", (e) => {
+    e.stopPropagation();
+    openWordDetail(item);
+  });
+  return el;
+}
+
+async function openWordDetail(item) {
+  state.wordItem = item;
+  $("#wdWord").textContent = item.word || "";
+  $("#wdMeaning").textContent = item.meaning || "（没有释义）";
+  $("#wdPos").hidden = true;
+  $("#wdPhrases").innerHTML = "";
+  $("#wdExamples").innerHTML = "";
+  $("#wdHint").textContent = "";
+  $("#wordModal").hidden = false;
+  try {
+    const d = await api(`/api/words/${item.word_id}/detail`);
+    renderWordDetail(d);
+  } catch (e) {
+    $("#wdHint").textContent = "读取失败：" + e.message;
+  }
+}
+
+function renderWordDetail(d) {
+  $("#wdWord").textContent = d.word || "";
+  $("#wdMeaning").textContent = d.meaning || "（没有释义）";
+  const pos = (d.pos || "").trim();
+  const chip = $("#wdPos");
+  chip.hidden = !pos;
+  chip.textContent = pos;
+  const fill = (sel, text) => {
+    const ul = $(sel);
+    ul.innerHTML = "";
+    (text || "").split("\n").filter((x) => x.trim()).forEach((line) => {
+      const li = document.createElement("li");
+      li.textContent = line;
+      ul.appendChild(li);
+    });
+  };
+  fill("#wdPhrases", d.phrases);
+  fill("#wdExamples", d.examples);
+  $("#wdHint").textContent = (d.phrases || d.examples)
+    ? `${(d.phrases || "").split("\n").filter(Boolean).length} 条搭配 · ${(d.examples || "").split("\n").filter(Boolean).length} 条例句`
+    : "还没有用法，可以点「AI 生成」或「编辑用法」";
+}
+
+function closeWordDetail() {
+  $("#wordModal").hidden = true;
+  state.wordItem = null;
+}
+
+async function aiForWordDetail() {
+  if (!state.wordItem) return;
+  const btn = $("#wdAI");
+  const old = btn.textContent;
+  btn.disabled = true;
+  btn.textContent = "生成中…";
+  try {
+    const g = await api("/api/ai/usage", {
+      method: "POST",
+      body: JSON.stringify({ word_id: state.wordItem.word_id, save: true }),
+    });
+    renderWordDetail({ ...state.wordItem, ...g });
+    toast("已生成并保存", "ok");
+    loadWords();
+  } catch (e) {
+    toast(e.message, "bad");
+  } finally {
+    btn.disabled = false;
+    btn.textContent = old;
+  }
+}
+
+/* ---------------------------- Cloudflare Workers AI ---------------------------- */
+async function loadAiStatus() {
+  try {
+    const s = await api("/api/ai/status");
+    state.ai = s;
+    const status = $("#aiStatus");
+    if (!s.available) {
+      status.textContent = "Workers AI 暂不可用";
+      status.style.color = "var(--err)";
+    } else if (!s.models.length) {
+      status.textContent = "Workers AI 尚未配置模型";
+      status.style.color = "var(--err)";
+    } else {
+      status.textContent = `已连接 · ${s.models.length} 个模型`;
+      status.style.color = "var(--ok)";
+    }
+    renderAiModels(s);
+  } catch (e) {
+    state.ai = { available: false, models: [], model: "" };
+    $("#aiStatus").textContent = "检测失败";
+  }
+}
+
+function renderAiModels(s) {
+  const sel = $("#aiModel");
+  if (!sel) return;
+  sel.innerHTML = "";
+  if (!s.models || !s.models.length) {
+    const o = document.createElement("option");
+    o.textContent = "（没有可用模型）";
+    sel.appendChild(o);
+    $("#aiFill").disabled = true;
+    return;
+  }
+  s.models.forEach((m) => {
+    const o = document.createElement("option");
+    o.value = m;
+    o.textContent = m;
+    if (m === s.model || m.split(":")[0] === (s.model || "").split(":")[0]) o.selected = true;
+    sel.appendChild(o);
+  });
+  $("#aiFill").disabled = false;
+}
+
+async function saveAiModel() {
+  const model = $("#aiModel").value;
+  if (!model) return;
+  try {
+    await api("/api/settings", { method: "PUT", body: JSON.stringify({ values: { ai_model: model } }) });
+    state.ai.model = model;
+    toast("默认模型已切换为 " + model, "ok");
+  } catch (e) { toast(e.message, "bad"); }
+}
+
+async function aiFillBook() {
+  if (!state.bookId) { toast("先选一个词书", "bad"); return; }
+  const box = $("#aiProgress");
+  box.hidden = false;
+  box.textContent = "正在提交…";
+  try {
+    const r = await api("/api/ai/fill_book", {
+      method: "POST",
+      body: JSON.stringify({
+        book_id: state.bookId,
+        limit: Number($("#aiLimit").value || 20),
+        only_missing: true,
+      }),
+    });
+    box.textContent = `共 ${r.total} 个词，生成中…`;
+    pollAiJob(r.job_id, box);
+  } catch (e) {
+    box.textContent = "失败：" + e.message;
+    toast(e.message, "bad");
+  }
+}
+
+function pollAiJob(jobId, box) {
+  const timer = setInterval(async () => {
+    try {
+      const j = await api(`/api/ai/jobs/${jobId}`);
+      box.textContent = `进度 ${j.done}/${j.total}` + (j.failed ? ` · 失败 ${j.failed}` : "") +
+        (j.status === "running" ? ` · 正在处理 ${j.message || ""}` : " · 完成");
+      if (j.status !== "running") {
+        clearInterval(timer);
+        toast(`AI 补齐完成：${j.done}/${j.total}`, "ok");
+        loadWords();
+        loadBooks(state.bookId);
+      }
+    } catch (e) {
+      clearInterval(timer);
+      box.textContent = "查询进度失败：" + e.message;
+    }
+  }, 1500);
+}
+
+async function aiGenerateForModal() {
+  if (!state.usageWord) return;
+  const btn = $("#usageAI");
+  btn.disabled = true;
+  const old = btn.textContent;
+  btn.textContent = "生成中…";
+  try {
+    const g = await api("/api/ai/usage", {
+      method: "POST",
+      body: JSON.stringify({ word_id: state.usageWord.id, save: false }),
+    });
+    $("#usagePhrases").value = g.phrases || "";
+    $("#usageExamples").value = g.examples || "";
+    $("#usagePos").value = g.pos || "";
+    toast("已生成，检查后点保存", "ok");
+  } catch (e) {
+    toast(e.message, "bad");
+  } finally {
+    btn.disabled = false;
+    btn.textContent = old;
+  }
+}
+
+/* ---------------------------- 今日计划 ---------------------------- */
+async function openTodayPlan(book) {
+  state.planBook = book;
+  state.planItems = [];
+  $("#planTitle").textContent = `今日计划 · ${book.name}`;
+  $("#planDate").textContent = "";
+  $("#planSummary").textContent = "加载中…";
+  $("#planWords").innerHTML = "";
+  $("#planFill").style.width = "0%";
+  $("#planStart").disabled = true;
+  $("#planModal").hidden = false;
+  try {
+    const p = await api(`/api/plan/today?book_id=${book.id}`);
+    state.planDate = p.date;
+    state.planItems = p.items.filter((x) => !x.done).map((x) => x.word_id);
+    $("#planDate").textContent = p.date;
+    const c = p.counts;
+    $("#planSummary").textContent =
+      `待学 ${c.pending}（到期 ${c.pending_due} · 新词 ${c.pending_new}）` +
+      ` · 今天已学 ${c.studied} · 每日新词上限 ${p.daily_new}` +
+      (p.daily_new ? `（已用 ${p.new_used_today}）` : "（不限）");
+    const total = c.total || 1;
+    $("#planFill").style.width = Math.min(100, (c.studied / total) * 100) + "%";
+    renderPlanItems(p.items);
+    $("#planStart").disabled = !state.planItems.length;
+    $("#planStart").textContent = state.planItems.length
+      ? `开始这一组（${state.planItems.length}）` : "今天已清空";
+  } catch (e) {
+    $("#planSummary").textContent = "加载失败：" + e.message;
+  }
+}
+
+function closePlan() {
+  $("#planModal").hidden = true;
+  state.planBook = null;
+}
+
+function renderPlanItems(items) {
+  const box = $("#planWords");
+  box.innerHTML = "";
+  if (!items.length) {
+    box.innerHTML = `<div class="empty" style="padding:24px 12px">
+      <p>今天没有要背的词。</p>
+      <p style="font-size:12px;color:var(--faint)">可能是还没导入单词，或「每日新词」设成了 0。</p></div>`;
+    return;
+  }
+  items.forEach((it) => {
+    const row = document.createElement("div");
+    row.className = "plan-row";
+    row.title = "点击整行查看：词性 / 用法 / 例句";
+    row.style.cursor = "pointer";
+    row.addEventListener("click", (e) => {
+      if (e.target.closest(".speak-btn")) return;      // 喇叭只负责发音
+      openWordDetail(it);
+    });
+    const w = document.createElement("div");
+    w.className = "p-w";
+    wordLink(w, it);
+    w.textContent = it.word;
+    const m = document.createElement("div");
+    m.className = "p-m";
+    m.textContent = it.meaning;
+    m.title = it.meaning;
+    const detailBtn = document.createElement("button");
+    detailBtn.className = "btn btn-sm";
+    detailBtn.textContent = "详情";
+    detailBtn.title = "看词性 / 词组 / 例句";
+    detailBtn.addEventListener("click", (e) => {
+      e.stopPropagation();
+      openWordDetail(it);
+    });
+    const chip = document.createElement("span");
+    if (it.done) {
+      chip.className = "chip " + (it.all_correct ? "ok" : "err");
+      chip.textContent = it.all_correct ? "已对" : `错 ${it.attempts - it.correct} 次`;
+    } else if (it.kind === "due") {
+      chip.className = "chip";
+      chip.textContent = "待学 · 到期";
+    } else {
+      chip.className = "chip";
+      chip.textContent = "待学 · 新词";
+    }
+    row.append(w, speakBtn(it.word), m, detailBtn, chip);
+    box.appendChild(row);
+  });
+}
+
+function startPlanSession() {
+  if (!state.planBook || !state.planItems.length) return;
+  const book = state.planBook;
+  const ids = state.planItems.slice();
+  closePlan();
+  if (state.bookId !== book.id) {
+    state.bookId = book.id;
+    renderBookSelect();
+    loadWords();
+  }
+  nav("study");
+  startSession("book", Math.min(200, ids.length), ids);
+}
+
+/* ---------------------------- 当日记忆 + 短文生成 ---------------------------- */
+async function openDayMemory(book) {
+  state.dayBook = book;
+  state.dayDate = null;
+  state.storyStyle = state.storyStyle || "story";
+  $("#dayMemTitle").textContent = `当日记忆 · ${book.name}`;
+  $("#dayMemDate").textContent = "";
+  $("#dayMemCount").textContent = "加载中…";
+  $("#dayMemWords").innerHTML = "";
+  $("#storyOut").hidden = true;
+  $("#storyActs").hidden = true;
+  $("#storyStatus").hidden = true;
+  $("#storyHistory").textContent = "";
+  $("#dayModal").hidden = false;
+  try {
+    const d = await api(`/api/history/today?book_id=${book.id}`);
+    state.dayDate = d.date;
+    $("#dayMemDate").textContent = d.date;
+    $("#dayMemCount").textContent = d.count ? `今天背过 ${d.count} 个词` : "今天还没有背词";
+    renderDayMemory(d.items);
+    loadStoryHistory();
+  } catch (e) {
+    $("#dayMemCount").textContent = "加载失败：" + e.message;
+  }
+}
+
+function closeDayMemory() {
+  $("#dayModal").hidden = true;
+  state.dayBook = null;
+}
+
+function renderDayMemory(items) {
+  const box = $("#dayMemWords");
+  box.innerHTML = "";
+  if (!items.length) {
+    box.innerHTML = `<div class="empty" style="padding:24px 12px">
+      <p>今天还没有背诵记录。</p>
+      <p style="font-size:12px;color:var(--faint)">去「背诵」做一组，再回来这里生成短文。</p></div>`;
+    $("#storyGen").disabled = true;
+    return;
+  }
+  $("#storyGen").disabled = false;
+  items.forEach((it) => {
+    const row = document.createElement("div");
+    row.className = "hw-row";
+    const w = document.createElement("div");
+    w.className = "w";
+    speakable(w, it.word);
+    w.textContent = it.word;
+    const m = document.createElement("div");
+    m.className = "m";
+    m.textContent = it.meaning;
+    const side = document.createElement("div");
+    side.style.cssText = "text-align:right;white-space:nowrap";
+    const chip = document.createElement("span");
+    chip.className = "chip " + (it.all_correct ? "ok" : "err");
+    chip.textContent = it.all_correct ? "全对" : `错 ${it.attempts - it.correct} 次`;
+    side.appendChild(chip);
+    if (it.is_new) {
+      const n = document.createElement("span");
+      n.className = "chip";
+      n.style.marginLeft = "6px";
+      n.textContent = "新词";
+      side.appendChild(n);
+    }
+    row.append(w, speakBtn(it.word), m, side);
+    box.appendChild(row);
+  });
+}
+
+function renderStoryText(text) {
+  const box = $("#storyOut");
+  box.innerHTML = "";
+  text.split("\n").forEach((line) => {
+    const div = document.createElement("div");
+    if (/^\s*(【中】|中文：)/.test(line)) div.className = "zh";
+    div.textContent = line || " ";
+    box.appendChild(div);
+  });
+  box.hidden = false;
+}
+
+async function generateStory() {
+  if (!state.dayBook) return;
+  const btn = $("#storyGen");
+  const old = btn.textContent;
+  const len = Math.max(50, Math.min(800, Number($("#storyLen").value || 200)));
+  const style = state.storyStyle || "story";
+  btn.disabled = true;
+  btn.textContent = "生成中…";
+  const st = $("#storyStatus");
+  st.hidden = false;
+  st.textContent = `正在用云端模型写 ${len} words 的${style === "dialogue" ? "对话" : "故事"}…（约 10–40 秒）`;
+  try {
+    const r = await api("/api/ai/story", {
+      method: "POST",
+      body: JSON.stringify({ book_id: state.dayBook.id, day: state.dayDate, style, length: len, save: true }),
+    });
+    renderStoryText(r.content);
+    $("#storyActs").hidden = false;
+    $("#storyMeta").textContent = `${r.style === "dialogue" ? "对话" : "故事"} · 实际 ${r.word_count} words · ${r.model}`;
+    st.hidden = true;
+    loadStoryHistory();
+  } catch (e) {
+    st.hidden = false;
+    st.textContent = "生成失败：" + e.message;
+    toast(e.message, "bad");
+  } finally {
+    btn.disabled = false;
+    btn.textContent = old;
+  }
+}
+
+async function loadStoryHistory() {
+  const box = $("#storyHistory");
+  if (!state.dayBook) return;
+  try {
+    const list = await api(`/api/ai/story?book_id=${state.dayBook.id}&day=${state.dayDate || ""}`);
+    if (!list.length) { box.textContent = ""; return; }
+    box.textContent = "";
+    const label = document.createElement("span");
+    label.textContent = "今天生成过的：";
+    box.appendChild(label);
+    list.forEach((it) => {
+      const b = document.createElement("button");
+      b.className = "btn btn-sm";
+      b.style.marginLeft = "6px";
+      b.textContent = `${it.style === "dialogue" ? "对话" : "故事"} · ${it.target_len}w`;
+      b.addEventListener("click", async () => {
+        try {
+          const full = await api(`/api/ai/story/${it.id}`);
+          renderStoryText(full.content);
+          $("#storyActs").hidden = false;
+          $("#storyMeta").textContent = `历史记录 · ${full.day}`;
+        } catch (e) { toast(e.message, "bad"); }
+      });
+      box.appendChild(b);
+    });
+  } catch (e) { box.textContent = ""; }
+}
+
+/* ---------------------------- 每日记录 ---------------------------- */
+async function loadHistory() {
+  if (!state.bookId) return;
+  try {
+    const list = await api(`/api/history/days?book_id=${state.bookId}&limit=${state.historyDays}`);
+    state.historyList = list;
+    renderDays(list);
+  } catch (e) { toast(e.message, "bad"); }
+}
+
+function renderDays(list) {
+  const box = $("#daysBody");
+  box.innerHTML = "";
+  if (!list.length) {
+    box.innerHTML = `<div class="empty"><p>还没有背诵记录。</p>
+      <p style="font-size:12px;color:var(--faint)">去「背诵」做一组，这里就会按天记下来。</p></div>`;
+    $("#dayTitle").textContent = "当天单词";
+    $("#daySummary").textContent = "";
+    $("#dayCount").textContent = "";
+    $("#dayWords").innerHTML = "";
+    return;
+  }
+  $("#dayCount").textContent = `${list.length} 天`;
+  if (!list.some((d) => d.date === state.day)) state.day = list[0].date;
+  list.forEach((d) => {
+    const b = document.createElement("button");
+    b.className = "day-item";
+    b.dataset.date = d.date;
+    b.setAttribute("aria-pressed", String(d.date === state.day));
+    const t = document.createElement("div");
+    t.className = "d";
+    t.textContent = d.date;
+    const m = document.createElement("div");
+    m.className = "meta";
+    m.textContent = `${d.words} 词 · 新 ${d.new} · 正确 ${Math.round(d.accuracy * 100)}%`;
+    b.append(t, m);
+    b.addEventListener("click", () => {
+      state.day = d.date;
+      $$(".day-item", box).forEach((x) => x.setAttribute("aria-pressed", String(x.dataset.date === d.date)));
+      loadHistoryDay(d.date);
+    });
+    box.appendChild(b);
+  });
+  loadHistoryDay(state.day);
+}
+
+async function loadHistoryDay(date) {
+  const box = $("#dayWords");
+  box.innerHTML = `<div class="empty"><p>加载中…</p></div>`;
+  try {
+    const data = await api(`/api/history/day?book_id=${state.bookId}&date=${date}`);
+    $("#dayTitle").textContent = `${date} 背过的词`;
+    $("#daySummary").textContent = `${data.count} 个词`;
+    if (!data.items.length) {
+      box.innerHTML = `<div class="empty"><p>这天没有记录。</p></div>`;
+      return;
+    }
+    box.innerHTML = "";
+    data.items.forEach((it) => {
+      const row = document.createElement("div");
+      row.className = "hw-row";
+      const w = document.createElement("div");
+      w.className = "w";
+      speakable(w, it.word);
+      w.textContent = it.word;
+      const m = document.createElement("div");
+      m.className = "m";
+      const meaning = document.createElement("div");
+      meaning.textContent = it.meaning;
+      m.appendChild(meaning);
+      if (it.phrases || it.examples) {
+        const u = document.createElement("div");
+        u.className = "u";
+        u.textContent = [it.phrases, it.examples].filter(Boolean).join("\n").split("\n").slice(0, 2).join("\n");
+        m.appendChild(u);
+      }
+      const side = document.createElement("div");
+      side.style.cssText = "text-align:right;white-space:nowrap";
+      const chip = document.createElement("span");
+      chip.className = "chip " + (it.all_correct ? "ok" : "err");
+      chip.textContent = it.all_correct ? "全对" : `错 ${it.attempts - it.correct} 次`;
+      side.appendChild(chip);
+      if (it.is_new) {
+        const n = document.createElement("span");
+        n.className = "chip";
+        n.style.marginLeft = "6px";
+        n.textContent = "新词";
+        side.appendChild(n);
+      }
+      const t = document.createElement("div");
+      t.style.cssText = "font-size:11px;color:var(--faint);margin-top:4px";
+      t.textContent = (it.last_time || "").slice(11, 16) + " UTC";
+      side.appendChild(t);
+      row.append(w, speakBtn(it.word), m, side);
+      box.appendChild(row);
+    });
+  } catch (e) {
+    box.innerHTML = `<div class="empty"><p>加载失败：${e.message}</p></div>`;
+  }
+}
+
+/* ---------------------------- 导入导出 ---------------------------- */
+
+function advance() {
+  const s = state.session;
+  if (!s) return;
+  if (state.idx + 1 >= s.items.length) { finish(); return; }
+  state.idx++;
+  renderQuestion();
+}
+
+async function finish() {
+  const s = state.session;
+  if (!s) return;
+  try {
+    const rep = await api("/api/session/finish", { method: "POST", body: JSON.stringify({ session_id: s.session_id }) });
+    state.session = null;
+    $("#studyRun").hidden = true;
+    $("#studySetup").hidden = false;
+    renderReport(rep);
+    loadBooks(state.bookId);
+  } catch (e) { toast(e.message, "bad"); }
+}
+
+function renderReport(rep) {
+  $("#reportView").hidden = false;
+  $("#reportScore").textContent = `${rep.correct} / ${rep.total}`;
+  $("#reportAcc").textContent = `正确率 ${Math.round(rep.accuracy * 100)}% · 用时 ${rep.duration_sec}s`;
+  const hasWrong = rep.wrong && rep.wrong.length;
+  $("#wrongHead").hidden = !hasWrong;
+  $("#wrongWrap").hidden = !hasWrong;
+  $("#wrongHint").textContent = hasWrong ? `${rep.wrong.length} 个` : "";
+  const list = $("#wrongList");
+  list.innerHTML = "";
+  (rep.wrong || []).forEach((w) => {
+    const li = document.createElement("li");
+    li.className = "wrong-item";
+    li.innerHTML = `<div class="w"></div><div class="m"></div><div class="mine"></div><div></div>`;
+    li.querySelector(".w").textContent = w.word;
+    li.querySelector(".m").textContent = w.meaning;
+    li.querySelector(".mine").textContent = `你写了：${w.answer || "（空）"}`;
+    list.appendChild(li);
+  });
+  if (!state.session) nav("study");
+  $("#studySetup").hidden = false;
+}
+
+/* ---------------------------- 复习计数 ---------------------------- */
+async function loadReviewCounts() {
+  if (!state.bookId) return;
+  try {
+    const s = await api(`/api/stats?book_id=${state.bookId}&range=day`);
+    $("#dueCount").textContent = nf(s.due);
+    $("#errorCount").textContent = nf(s.errors);
+    $("#dueBadge").hidden = !s.due;
+    $("#dueBadge").textContent = s.due;
+    try {
+      const y = await api(`/api/history/yesterday?book_id=${state.bookId}`);
+      $("#yesterdayCount").textContent = nf(y.count);
+    } catch (e) { /* 昨天没有记录 */ }
+  } catch { /* 忽略 */ }
+}
+
+function updateBadges() {
+  const b = state.books.find((x) => x.id === state.bookId);
+  if (!b) return;
+  $("#dueBadge").hidden = !b.due_count;
+  $("#dueBadge").textContent = b.due_count;
+}
+
+/* ---------------------------- 统计 ---------------------------- */
+async function loadStats() {
+  if (!state.bookId) return;
+  try {
+    const s = await api(`/api/stats?book_id=${state.bookId}&range=${state.range}`);
+    $("#kNew").textContent = nf(s.new);
+    $("#kNewSub").textContent = `目标 ${nf(s.target)}（每日 ${s.plan}）`;
+    $("#kReview").textContent = nf(s.review);
+    $("#kAcc").textContent = Math.round(s.accuracy * 100) + "%";
+    $("#kStreak").textContent = nf(s.streak);
+    $("#kComp").textContent = Math.round(s.completion * 100) + "%";
+    $("#kCompSub").textContent = `${nf(s.new)} / ${nf(s.target)} 目标`;
+    $("#compFill").style.width = Math.min(100, s.completion * 100) + "%";
+    $("#kTotal").textContent = nf(s.total_words);
+    $("#kMastered").textContent = nf(s.mastered);
+    $("#kDue").textContent = nf(s.due);
+    $("#planHint").textContent = `每日新词 ${s.plan}`;
+    drawChart(s.chart || []);
+  } catch (e) { /* 无词书时静默 */ }
+}
+
+function drawChart(rows) {
+  const svg = $("#chart");
+  const W = 560, H = 170, padB = 22, padT = 10;
+  const max = Math.max(4, ...rows.map((r) => r.new + r.review));
+  const bw = W / Math.max(1, rows.length);
+  svg.innerHTML = "";
+  const ns = "http://www.w3.org/2000/svg";
+  rows.forEach((r, i) => {
+    const x = i * bw + bw * 0.22;
+    const w = bw * 0.56;
+    const hNew = (r.new / max) * (H - padB - padT);
+    const hRev = (r.review / max) * (H - padB - padT);
+    const yRev = H - padB - hRev;
+    const yNew = yRev - hNew;
+    const a = document.createElementNS(ns, "rect");
+    a.setAttribute("x", x); a.setAttribute("y", yNew);
+    a.setAttribute("width", w); a.setAttribute("height", Math.max(0, hNew));
+    a.setAttribute("rx", 3); a.setAttribute("class", "bar-new");
+    svg.appendChild(a);
+    const b = document.createElementNS(ns, "rect");
+    b.setAttribute("x", x); b.setAttribute("y", yRev);
+    b.setAttribute("width", w); b.setAttribute("height", Math.max(0, hRev));
+    b.setAttribute("rx", 3); b.setAttribute("class", "bar-review");
+    svg.appendChild(b);
+    const t = document.createElementNS(ns, "text");
+    t.setAttribute("x", x + w / 2); t.setAttribute("y", H - 6);
+    t.setAttribute("text-anchor", "middle");
+    t.textContent = r.date.slice(5);
+    svg.appendChild(t);
+  });
+}
+
+/* ---------------------------- 导入导出 ---------------------------- */
+async function importFile(file) {
+  if (!state.bookId) { toast("先选一个词书", "bad"); return; }
+  const fd = new FormData();
+  fd.append("book_id", state.bookId);
+  fd.append("file", file);
+  try {
+    const r = await api("/api/import/csv", { method: "POST", body: fd });
+    const box = $("#importResult");
+    box.hidden = false;
+    box.innerHTML = `新增 <b>${r.added}</b> · 跳过（已存在）<b>${r.skipped}</b>` +
+      (r.updated ? ` · 补充用法 <b>${r.updated}</b>` : "") + ` · 失败 <b>${r.failed}</b>`;
+    toast(`导入完成：+${r.added}`, r.added ? "ok" : "bad");
+    await loadBooks(state.bookId); loadWords();
+  } catch (e) { toast(e.message, "bad"); }
+}
+
+function exportBook(fmt) {
+  if (!state.bookId) { toast("先选一个词书", "bad"); return; }
+  location.href = `/api/export?book_id=${state.bookId}&format=${fmt}`;
+}
+
+/* ---------------------------- 事件绑定 ---------------------------- */
+$("#modeSeg").addEventListener("click", (e) => {
+  const b = e.target.closest("button[data-mode]"); if (!b) return;
+  state.mode = b.dataset.mode;
+  $$("#modeSeg button").forEach((x) => x.setAttribute("aria-pressed", x === b));
+});
+$("#scopeSeg").addEventListener("click", (e) => {
+  const b = e.target.closest("button[data-scope]"); if (!b) return;
+  state.scope = b.dataset.scope;
+  $$("#scopeSeg button").forEach((x) => x.setAttribute("aria-pressed", x === b));
+});
+$("#wordFilter").addEventListener("click", (e) => {
+  const b = e.target.closest("button[data-filter]"); if (!b) return;
+  state.words.filter = b.dataset.filter; state.words.page = 1;
+  $$("#wordFilter button").forEach((x) => x.setAttribute("aria-pressed", x === b));
+  loadWords();
+});
+$("#rangeSeg").addEventListener("click", (e) => {
+  const b = e.target.closest("button[data-range]"); if (!b) return;
+  state.range = b.dataset.range;
+  $$("#rangeSeg button").forEach((x) => x.setAttribute("aria-pressed", x === b));
+  loadStats();
+});
+
+$("#bookSelect").addEventListener("change", (e) => {
+  state.bookId = Number(e.target.value);
+  state.words.page = 1;
+  loadWords(); loadStats(); loadReviewCounts(); renderBookGrid();
+});
+$("#startBtn").addEventListener("click", () => startSession(state.scope));
+$("#againBtn").addEventListener("click", () => { $("#reportView").hidden = true; startSession(state.scope); });
+$("#backBtn").addEventListener("click", () => { $("#reportView").hidden = true; $("#studySetup").hidden = false; });
+$("#submitBtn").addEventListener("click", () => {
+  if ($("#submitBtn").textContent.startsWith("下一题")) { advance(); return; }
+  submitAnswer(null, false);
+});
+$("#revealBtn").addEventListener("click", () => submitAnswer("", true));
+$("#quitBtn").addEventListener("click", async () => {
+  if (state.session && state.results.length) await finish();
+  else { state.session = null; $("#studyRun").hidden = true; $("#studySetup").hidden = false; }
+});
+$("#answerInput").addEventListener("keydown", (e) => {
+  if (e.key === "Enter") { e.preventDefault(); submitAnswer(null, false); }
+});
+document.addEventListener("keydown", (e) => {
+  if (e.key === "Escape" && !$("#studyRun").hidden && !$("#answerInput").disabled) {
+    e.preventDefault(); submitAnswer("", true);
+  }
+  if (e.altKey && (e.key === "d" || e.key === "D")) { e.preventDefault(); toggleTheme(); }
+});
+$("#themeBtn").addEventListener("click", toggleTheme);
+
+$("#newBookBtn").addEventListener("click", newBook);
+$("#addWordBtn").addEventListener("click", addWord);
+$("#prevPage").addEventListener("click", () => { state.words.page = Math.max(1, state.words.page - 1); loadWords(); });
+$("#nextPage").addEventListener("click", () => { state.words.page++; loadWords(); });
+let searchTimer = null;
+$("#wordSearch").addEventListener("input", (e) => {
+  clearTimeout(searchTimer);
+  searchTimer = setTimeout(() => { state.words.q = e.target.value; state.words.page = 1; loadWords(); }, 250);
+});
+$$("[data-scope]").forEach((b) => {
+  if (b.closest("#page-review")) b.addEventListener("click", () => {
+    const lim = Number($("#bookLimit").value || 30);
+    nav("study");
+    const scope = b.dataset.scope;
+    const useLimit = scope === "book" ? lim : (scope === "yesterday" ? 200 : state.limit);
+    startSession(scope, useLimit);
+  });
+});
+
+$("#pickFileBtn").addEventListener("click", () => $("#fileInput").click());
+$("#fileInput").addEventListener("change", (e) => { if (e.target.files[0]) importFile(e.target.files[0]); });
+const dz = $("#dropZone");
+dz.addEventListener("dragover", (e) => { e.preventDefault(); dz.classList.add("hover"); });
+dz.addEventListener("dragleave", () => dz.classList.remove("hover"));
+dz.addEventListener("drop", (e) => {
+  e.preventDefault(); dz.classList.remove("hover");
+  if (e.dataTransfer.files[0]) importFile(e.dataTransfer.files[0]);
+});
+$("#exportJson").addEventListener("click", () => exportBook("json"));
+$("#exportCsv").addEventListener("click", () => exportBook("csv"));
+
+/* 单词详情弹窗 */
+$("#wdClose").addEventListener("click", closeWordDetail);
+$("#wordModal").addEventListener("click", (e) => { if (e.target.id === "wordModal") closeWordDetail(); });
+$("#wdSpeak").addEventListener("click", () => { if (state.wordItem) TTS.speak(state.wordItem.word); });
+$("#wdAI").addEventListener("click", aiForWordDetail);
+$("#wdEdit").addEventListener("click", () => {
+  if (!state.wordItem) return;
+  openUsage({ id: state.wordItem.word_id, word: state.wordItem.word, meaning: state.wordItem.meaning });
+});
+
+/* 今日计划弹窗 */
+$("#planClose").addEventListener("click", closePlan);
+$("#planModal").addEventListener("click", (e) => { if (e.target.id === "planModal") closePlan(); });
+$("#planStart").addEventListener("click", startPlanSession);
+
+/* 当日记忆弹窗 */
+$("#dayMemClose").addEventListener("click", closeDayMemory);
+$("#dayModal").addEventListener("click", (e) => { if (e.target.id === "dayModal") closeDayMemory(); });
+$("#storyGen").addEventListener("click", generateStory);
+$("#storyStyle").addEventListener("click", (e) => {
+  const b = e.target.closest("button[data-style]");
+  if (!b) return;
+  state.storyStyle = b.dataset.style;
+  $$("#storyStyle button").forEach((x) => x.setAttribute("aria-pressed", x === b));
+});
+$$("[data-len]").forEach((b) => b.addEventListener("click", () => { $("#storyLen").value = b.dataset.len; }));
+$("#storyCopy").addEventListener("click", async () => {
+  try {
+    await navigator.clipboard.writeText($("#storyOut").innerText);
+    toast("已复制", "ok");
+  } catch (e) { toast("复制失败，请手动选中", "bad"); }
+});
+
+/* 用法弹窗 */
+$("#usageSave").addEventListener("click", saveUsage);
+$("#usageCancel").addEventListener("click", closeUsage);
+$("#usageClose").addEventListener("click", closeUsage);
+$("#usageAI").addEventListener("click", aiGenerateForModal);
+$("#aiRefresh").addEventListener("click", loadAiStatus);
+$("#aiFill").addEventListener("click", aiFillBook);
+$("#aiModel").addEventListener("change", saveAiModel);
+$("#usageModal").addEventListener("click", (e) => { if (e.target.id === "usageModal") closeUsage(); });
+document.addEventListener("keydown", (e) => {
+  if (e.key === "Escape" && !$("#usageModal").hidden) { e.preventDefault(); closeUsage(); }
+  if (e.key === "Escape" && !$("#wordModal").hidden) { e.preventDefault(); closeWordDetail(); }
+  if (e.key === "Escape" && !$("#dayModal").hidden) { e.preventDefault(); closeDayMemory(); }
+  if (e.key === "Escape" && !$("#planModal").hidden) { e.preventDefault(); closePlan(); }
+  if (e.ctrlKey && (e.code === "Space" || e.key === " ") && !$("#studyRun").hidden) {
+    if (state.mode === "B" && state.promptWord) { e.preventDefault(); TTS.speak(state.promptWord); }
+  }
+  if ((e.ctrlKey || e.metaKey) && e.key === "Enter" && !$("#usageModal").hidden) { e.preventDefault(); saveUsage(); }
+});
+$("#historyRange").addEventListener("click", (e) => {
+  const b = e.target.closest("button[data-days]"); if (!b) return;
+  state.historyDays = Number(b.dataset.days);
+  $$("#historyRange button").forEach((x) => x.setAttribute("aria-pressed", x === b));
+  state.day = null;
+  loadHistory();
+});
+
+/* ---------------------------- 启动 ---------------------------- */
+(async function boot() {
+  try {
+    const health = await api("/api/health");
+    $("#healthDot").classList.add("ok");
+    $("#healthText").textContent = `SQLite · ${health.journal_mode.toUpperCase()}`;
+  } catch { $("#healthText").textContent = "未连接"; }
+
+  try {
+    state.settings = await api("/api/settings");
+    applyTheme(state.settings.theme || "auto");
+    state.autoNext = (state.settings.auto_next ?? "1") === "1";
+  } catch { applyTheme("auto"); }
+
+  matchMedia("(prefers-color-scheme: dark)").addEventListener("change", () => {
+    if ((state.settings.theme || "auto") === "auto") applyTheme("auto");
+  });
+
+  await loadBooks();
+  await loadReviewCounts();
+  await loadStats();
+  await loadAiStatus();
+})();
+</script>
+</body>
+</html>

@@ -1,0 +1,26 @@
+{
+  "$schema": "node_modules/wrangler/config-schema.json",
+  "name": "vocab-study",
+  "main": "src/worker.py",
+  "compatibility_date": "2026-11-10",
+  "compatibility_flags": ["python_workers"],
+  "assets": {
+    "directory": "./public",
+    "binding": "ASSETS",
+    "run_worker_first": true
+  },
+  "d1_databases": [
+    {
+      "binding": "DB",
+      "database_name": "vocab-study-db",
+      "database_id": "1eb1a0ce-0ec7-4b00-9496-35765e896819",
+      "migrations_dir": "migrations"
+    }
+  ],
+  "ai": {
+    "binding": "AI"
+  },
+  "observability": {
+    "enabled": true
+  }
+}

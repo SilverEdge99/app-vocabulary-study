@@ -17,6 +17,15 @@ __pycache__/
 *.py[cod]
 .venv/
 venv/
+.uv-cache/
+.wrangler/
+.venv-workers/
+python_modules/
+dist/
+pylock.toml
+.pkg-cache/
+.tmp-modules/
+wrangler.local.jsonc
 
 # ---- 日志 / 临时 ----
 *.log

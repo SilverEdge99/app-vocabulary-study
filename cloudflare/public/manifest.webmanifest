@@ -1,0 +1,12 @@
+{
+  "name": "Vocab 背单词",
+  "short_name": "Vocab",
+  "start_url": "/",
+  "display": "standalone",
+  "background_color": "#F7F5F1",
+  "theme_color": "#B4552D",
+  "icons": [
+    {"src": "/icon-180.png", "sizes": "180x180", "type": "image/png"},
+    {"src": "/icon-512.png", "sizes": "512x512", "type": "image/png"}
+  ]
+}

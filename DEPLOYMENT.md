@@ -2,12 +2,12 @@
 
 ## 当前线上环境
 
-- 网站：<https://vocab.silverhark99.workers.dev>
+- 网站：公共入口已临时关闭，等待 Cloudflare Access 启用后恢复
 - Worker：`vocab`
 - 数据库：Cloudflare D1 `vocab-study-db`（亚太区域）
 - AI：Workers AI `@cf/zai-org/glm-4.7-flash`
 - 入口目录：`cloudflare/`
-- 登录保护：Cloudflare Access 邮箱一次性验证码
+- 登录保护：Cloudflare Access 尚未启用；`workers.dev` 公共入口已关闭
 
 ## 部署架构
 

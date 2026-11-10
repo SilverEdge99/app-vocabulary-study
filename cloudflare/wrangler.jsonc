@@ -1,6 +1,6 @@
 {
   "$schema": "node_modules/wrangler/config-schema.json",
-  "name": "vocab-study",
+  "name": "vocab",
   "main": "src/worker.py",
   "compatibility_date": "2026-11-10",
   "compatibility_flags": ["python_workers"],

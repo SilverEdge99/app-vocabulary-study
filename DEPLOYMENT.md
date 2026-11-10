@@ -2,8 +2,8 @@
 
 ## 当前线上环境
 
-- 网站：<https://vocab-study.silverhark99.workers.dev>
-- Worker：`vocab-study`
+- 网站：<https://vocab.silverhark99.workers.dev>
+- Worker：`vocab`
 - 数据库：Cloudflare D1 `vocab-study-db`（亚太区域）
 - AI：Workers AI `@cf/zai-org/glm-4.7-flash`
 - 入口目录：`cloudflare/`
